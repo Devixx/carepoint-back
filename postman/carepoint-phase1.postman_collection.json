@@ -1,0 +1,930 @@
+{
+  "info": {
+    "_postman_id": "carepoint-phase1-complete-2025",
+    "name": "CarePoint Phase 1 - Complete Collection",
+    "description": "Complete API collection for testing CarePoint medical appointment management system with realistic random data generation.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3001",
+      "type": "text"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "text"
+    },
+    {
+      "key": "patient_id",
+      "value": "",
+      "type": "text"
+    },
+    {
+      "key": "appointment_id",
+      "value": "",
+      "type": "text"
+    }
+  ],
+  "item": [
+    {
+      "name": "🏥 Health Check",
+      "item": [
+        {
+          "name": "Server Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✅ Server is healthy', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const response = pm.response.json();",
+                  "  pm.expect(response.status).to.equal('ok');",
+                  "});",
+                  "console.log('✅ CarePoint backend is running and healthy');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Check if the CarePoint backend server is running"
+          }
+        },
+        {
+          "name": "API Root",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✅ API root accessible', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "console.log('✅ API root endpoint working');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            },
+            "description": "Test the root API endpoint"
+          }
+        }
+      ],
+      "description": "Basic health check endpoints"
+    },
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Register Doctor",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate realistic doctor data using built-in variables",
+                  "const timestamp = Date.now();",
+                  "const firstName = pm.variables.replaceIn('{{$randomFirstName}}');",
+                  "const lastName = pm.variables.replaceIn('{{$randomLastName}}');",
+                  "const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${timestamp}@carepoint.lu`;",
+                  "",
+                  "// Medical specialties for realistic data",
+                  "const specialties = [",
+                  "  'Cardiology', 'Neurology', 'Pediatrics', 'Oncology', 'Dermatology',",
+                  "  'Psychiatry', 'Orthopedics', 'Radiology', 'Emergency Medicine', 'Internal Medicine'",
+                  "];",
+                  "const specialty = specialties[Math.floor(Math.random() * specialties.length)];",
+                  "",
+                  "// Set environment variables",
+                  "pm.environment.set('doctor_email', email);",
+                  "pm.environment.set('doctor_firstName', `Dr. ${firstName}`);",
+                  "pm.environment.set('doctor_lastName', lastName);",
+                  "pm.environment.set('doctor_specialty', specialty);",
+                  "pm.environment.set('doctor_password', 'SecurePass123!');",
+                  "pm.environment.set('doctor_license', `LU${timestamp}`);",
+                  "pm.environment.set('doctor_phone', `+352 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100}`);",
+                  "",
+                  "console.log('🎲 Generated doctor data:');",
+                  "console.log('Name:', `Dr. ${firstName} ${lastName}`);",
+                  "console.log('Email:', email);",
+                  "console.log('Specialty:', specialty);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const response = pm.response.json();",
+                  "  pm.environment.set('jwt_token', response.access_token);",
+                  "  pm.test('✅ Doctor registration successful', () => {",
+                  "    pm.expect(response.access_token).to.not.be.undefined;",
+                  "    pm.expect(response.user.email).to.equal(pm.environment.get('doctor_email'));",
+                  "    pm.expect(response.user.specialty).to.equal(pm.environment.get('doctor_specialty'));",
+                  "  });",
+                  "  console.log('✅ Doctor registered successfully!');",
+                  "  console.log('🔑 JWT token saved to environment');",
+                  "} else {",
+                  "  pm.test('❌ Registration failed', () => {",
+                  "    pm.expect.fail(`Registration failed with status ${pm.response.code}: ${pm.response.text()}`);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{doctor_email}}\",\n  \"password\": \"{{doctor_password}}\",\n  \"firstName\": \"{{doctor_firstName}}\",\n  \"lastName\": \"{{doctor_lastName}}\",\n  \"specialty\": \"{{doctor_specialty}}\",\n  \"licenseNumber\": \"{{doctor_license}}\",\n  \"phone\": \"{{doctor_phone}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register a new doctor with medical credentials"
+          }
+        },
+        {
+          "name": "Login Doctor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const response = pm.response.json();",
+                  "  pm.environment.set('jwt_token', response.access_token);",
+                  "  pm.test('✅ Doctor login successful', () => {",
+                  "    pm.expect(response.access_token).to.not.be.undefined;",
+                  "    pm.expect(response.user.email).to.equal(pm.environment.get('doctor_email'));",
+                  "  });",
+                  "  console.log('✅ Doctor logged in successfully!');",
+                  "  console.log('🔑 JWT token updated in environment');",
+                  "} else {",
+                  "  pm.test('❌ Login failed', () => {",
+                  "    pm.expect.fail(`Login failed with status ${pm.response.code}: ${pm.response.text()}`);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{doctor_email}}\",\n  \"password\": \"{{doctor_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login with doctor credentials to get JWT token"
+          }
+        },
+        {
+          "name": "Get Doctor Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✅ Profile retrieved successfully', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const profile = pm.response.json();",
+                  "  pm.expect(profile.email).to.equal(pm.environment.get('doctor_email'));",
+                  "});",
+                  "console.log('✅ Doctor profile retrieved successfully');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile"]
+            },
+            "description": "Get current doctor's profile information"
+          }
+        }
+      ],
+      "description": "Doctor authentication endpoints"
+    },
+    {
+      "name": "👥 Patient Management",
+      "item": [
+        {
+          "name": "Create Patient",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate realistic patient data using built-in variables",
+                  "const timestamp = Date.now();",
+                  "const firstName = pm.variables.replaceIn('{{$randomFirstName}}');",
+                  "const lastName = pm.variables.replaceIn('{{$randomLastName}}');",
+                  "const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}.${timestamp}@example.com`;",
+                  "",
+                  "// Generate realistic birth date (20-80 years old)",
+                  "const currentYear = new Date().getFullYear();",
+                  "const birthYear = currentYear - Math.floor(Math.random() * 60) - 20;",
+                  "const birthMonth = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');",
+                  "const birthDay = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');",
+                  "const dateOfBirth = `${birthYear}-${birthMonth}-${birthDay}`;",
+                  "",
+                  "// Luxembourg addresses",
+                  "const luxembourgAddresses = [",
+                  "  '45 Avenue de la Liberté, Luxembourg City',",
+                  "  '123 Boulevard Royal, Luxembourg',",
+                  "  '67 Rue de Strasbourg, Luxembourg City',",
+                  "  '89 Avenue J.F. Kennedy, Luxembourg',",
+                  "  '234 Route de Thionville, Luxembourg City'",
+                  "];",
+                  "",
+                  "// Medical conditions",
+                  "const medicalConditions = [",
+                  "  'Hypertension, Type 2 Diabetes',",
+                  "  'Asthma, Seasonal allergies',",
+                  "  'High cholesterol, Family history of heart disease',",
+                  "  'Migraine headaches, Anxiety disorder',",
+                  "  'No significant medical history'",
+                  "];",
+                  "",
+                  "// Set environment variables",
+                  "pm.environment.set('patient_firstName', firstName);",
+                  "pm.environment.set('patient_lastName', lastName);",
+                  "pm.environment.set('patient_email', email);",
+                  "pm.environment.set('patient_phone', `+352 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100}`);",
+                  "pm.environment.set('patient_dob', dateOfBirth);",
+                  "pm.environment.set('patient_address', luxembourgAddresses[Math.floor(Math.random() * luxembourgAddresses.length)]);",
+                  "pm.environment.set('patient_emergencyContact', pm.variables.replaceIn('{{$randomFullName}}'));",
+                  "pm.environment.set('patient_emergencyPhone', `+352 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100}`);",
+                  "pm.environment.set('patient_medicalHistory', medicalConditions[Math.floor(Math.random() * medicalConditions.length)]);",
+                  "",
+                  "console.log('🎲 Generated patient data:');",
+                  "console.log('Name:', firstName, lastName);",
+                  "console.log('Email:', email);",
+                  "console.log('DOB:', dateOfBirth);",
+                  "console.log('Address:', pm.environment.get('patient_address'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const response = pm.response.json();",
+                  "  pm.environment.set('patient_id', response.id);",
+                  "  pm.test('✅ Patient created successfully', () => {",
+                  "    pm.expect(response.firstName).to.equal(pm.environment.get('patient_firstName'));",
+                  "    pm.expect(response.email).to.equal(pm.environment.get('patient_email'));",
+                  "    pm.expect(response.id).to.not.be.undefined;",
+                  "  });",
+                  "  console.log('✅ Patient created successfully!');",
+                  "  console.log('👤 Patient ID saved:', response.id);",
+                  "} else {",
+                  "  pm.test('❌ Patient creation failed', () => {",
+                  "    pm.expect.fail(`Patient creation failed with status ${pm.response.code}: ${pm.response.text()}`);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"{{patient_firstName}}\",\n  \"lastName\": \"{{patient_lastName}}\",\n  \"email\": \"{{patient_email}}\",\n  \"phone\": \"{{patient_phone}}\",\n  \"dateOfBirth\": \"{{patient_dob}}\",\n  \"address\": \"{{patient_address}}\",\n  \"emergencyContact\": \"{{patient_emergencyContact}}\",\n  \"emergencyPhone\": \"{{patient_emergencyPhone}}\",\n  \"medicalHistory\": \"{{patient_medicalHistory}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/clients",
+              "host": ["{{base_url}}"],
+              "path": ["clients"]
+            },
+            "description": "Create a new patient with medical history"
+          }
+        },
+        {
+          "name": "List All Patients",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✅ Patients list retrieved', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const patients = pm.response.json();",
+                  "  pm.expect(patients).to.be.an('array');",
+                  "});",
+                  "const patients = pm.response.json();",
+                  "console.log(`✅ Found ${patients.length} patients for this doctor`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/clients",
+              "host": ["{{base_url}}"],
+              "path": ["clients"]
+            },
+            "description": "Get all patients for the current doctor"
+          }
+        },
+        {
+          "name": "Get Patient by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✅ Patient details retrieved', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const patient = pm.response.json();",
+                  "  pm.expect(patient.id).to.equal(pm.environment.get('patient_id'));",
+                  "});",
+                  "console.log('✅ Patient details retrieved successfully');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/clients/{{patient_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["clients", "{{patient_id}}"]
+            },
+            "description": "Get specific patient details by ID"
+          }
+        },
+        {
+          "name": "Update Patient",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate updated data",
+                  "pm.environment.set('updated_phone', `+352 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100}`);",
+                  "pm.environment.set('updated_notes', 'Patient information updated via API test');",
+                  "console.log('🔄 Updating patient with new phone:', pm.environment.get('updated_phone'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✅ Patient updated successfully', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const response = pm.response.json();",
+                  "  pm.expect(response.phone).to.equal(pm.environment.get('updated_phone'));",
+                  "});",
+                  "console.log('✅ Patient information updated successfully');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{updated_phone}}\",\n  \"notes\": \"{{updated_notes}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/clients/{{patient_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["clients", "{{patient_id}}"]
+            },
+            "description": "Update patient information"
+          }
+        },
+        {
+          "name": "Delete Patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✅ Patient deleted successfully', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "console.log('✅ Patient deleted successfully');",
+                  "// Clear patient_id since patient is deleted",
+                  "pm.environment.set('patient_id', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/clients/{{patient_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["clients", "{{patient_id}}"]
+            },
+            "description": "Delete a patient record (use with caution)"
+          }
+        }
+      ],
+      "description": "Patient management endpoints"
+    },
+    {
+      "name": "📅 Appointment Management",
+      "item": [
+        {
+          "name": "Create Appointment",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate random future appointment time",
+                  "const now = new Date();",
+                  "const futureDate = new Date(now.getTime() + Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000); // Random day in next 30 days",
+                  "",
+                  "// Random time between 8 AM and 5 PM",
+                  "const hour = Math.floor(Math.random() * 9) + 8; // 8-16 (8am-4pm)",
+                  "const minute = Math.random() < 0.5 ? 0 : 30; // Either :00 or :30",
+                  "",
+                  "futureDate.setHours(hour, minute, 0, 0);",
+                  "const startTime = futureDate.toISOString();",
+                  "",
+                  "// End time 30 minutes later",
+                  "const endDate = new Date(futureDate.getTime() + 30 * 60 * 1000);",
+                  "const endTime = endDate.toISOString();",
+                  "",
+                  "// Random appointment types and data",
+                  "const appointmentTypes = [",
+                  "  { type: 'consultation', title: 'General Consultation' },",
+                  "  { type: 'follow_up', title: 'Follow-up Appointment' },",
+                  "  { type: 'routine_checkup', title: 'Routine Checkup' },",
+                  "  { type: 'consultation', title: 'Specialist Consultation' }",
+                  "];",
+                  "const randomAppointment = appointmentTypes[Math.floor(Math.random() * appointmentTypes.length)];",
+                  "",
+                  "// Random fees between 50-150 EUR",
+                  "const fee = Math.floor(Math.random() * 100) + 50;",
+                  "",
+                  "// Set environment variables",
+                  "pm.environment.set('appointment_start', startTime);",
+                  "pm.environment.set('appointment_end', endTime);",
+                  "pm.environment.set('appointment_type', randomAppointment.type);",
+                  "pm.environment.set('appointment_title', randomAppointment.title);",
+                  "pm.environment.set('appointment_fee', fee);",
+                  "pm.environment.set('appointment_description', `${randomAppointment.title} scheduled for ${futureDate.toLocaleDateString()}`);",
+                  "",
+                  "console.log('🎲 Generated appointment data:');",
+                  "console.log('Date/Time:', futureDate.toLocaleString());",
+                  "console.log('Type:', randomAppointment.type);",
+                  "console.log('Title:', randomAppointment.title);",
+                  "console.log('Fee:', fee, 'EUR');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const response = pm.response.json();",
+                  "  pm.environment.set('appointment_id', response.id);",
+                  "  pm.test('✅ Appointment created successfully', () => {",
+                  "    pm.expect(response.title).to.equal(pm.environment.get('appointment_title'));",
+                  "    pm.expect(response.fee).to.equal(parseFloat(pm.environment.get('appointment_fee')));",
+                  "    pm.expect(response.id).to.not.be.undefined;",
+                  "  });",
+                  "  console.log('✅ Appointment created successfully!');",
+                  "  console.log('📅 Appointment ID saved:', response.id);",
+                  "} else {",
+                  "  pm.test('❌ Appointment creation failed', () => {",
+                  "    pm.expect.fail(`Appointment creation failed with status ${pm.response.code}: ${pm.response.text()}`);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"{{appointment_start}}\",\n  \"endTime\": \"{{appointment_end}}\",\n  \"title\": \"{{appointment_title}}\",\n  \"description\": \"{{appointment_description}}\",\n  \"type\": \"{{appointment_type}}\",\n  \"patientId\": \"{{patient_id}}\",\n  \"fee\": {{appointment_fee}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/appointments",
+              "host": ["{{base_url}}"],
+              "path": ["appointments"]
+            },
+            "description": "Create a new appointment with conflict checking"
+          }
+        },
+        {
+          "name": "List All Appointments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✅ Appointments list retrieved', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const appointments = pm.response.json();",
+                  "  pm.expect(appointments).to.be.an('array');",
+                  "});",
+                  "const appointments = pm.response.json();",
+                  "console.log(`✅ Found ${appointments.length} appointments for this doctor`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/appointments",
+              "host": ["{{base_url}}"],
+              "path": ["appointments"]
+            },
+            "description": "Get all appointments for the current doctor"
+          }
+        },
+        {
+          "name": "Get Calendar Data for Date",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Set a test date for calendar view",
+                  "const testDate = new Date();",
+                  "testDate.setDate(testDate.getDate() + 7); // Next week",
+                  "const dateString = testDate.toISOString().split('T')[0];",
+                  "pm.environment.set('calendar_date', dateString);",
+                  "console.log('📅 Getting calendar data for date:', dateString);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✅ Calendar data retrieved', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const appointments = pm.response.json();",
+                  "  pm.expect(appointments).to.be.an('array');",
+                  "});",
+                  "const appointments = pm.response.json();",
+                  "console.log(`✅ Found ${appointments.length} appointments for date:`, pm.environment.get('calendar_date'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/appointments/calendar/{{calendar_date}}",
+              "host": ["{{base_url}}"],
+              "path": ["appointments", "calendar", "{{calendar_date}}"]
+            },
+            "description": "Get all appointments for a specific date"
+          }
+        },
+        {
+          "name": "Get Appointment by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✅ Appointment details retrieved', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const appointment = pm.response.json();",
+                  "  pm.expect(appointment.id).to.equal(pm.environment.get('appointment_id'));",
+                  "});",
+                  "console.log('✅ Appointment details retrieved successfully');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/appointments/{{appointment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["appointments", "{{appointment_id}}"]
+            },
+            "description": "Get specific appointment details by ID"
+          }
+        },
+        {
+          "name": "Update Appointment Status",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Random status update",
+                  "const statuses = ['confirmed', 'in_progress', 'completed'];",
+                  "const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];",
+                  "pm.environment.set('new_appointment_status', randomStatus);",
+                  "pm.environment.set('appointment_notes', `Status updated to ${randomStatus} via automated test`);",
+                  "console.log('🔄 Updating appointment status to:', randomStatus);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✅ Appointment updated successfully', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const response = pm.response.json();",
+                  "  pm.expect(response.status).to.equal(pm.environment.get('new_appointment_status'));",
+                  "});",
+                  "console.log('✅ Appointment status updated successfully');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"{{new_appointment_status}}\",\n  \"notes\": \"{{appointment_notes}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/appointments/{{appointment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["appointments", "{{appointment_id}}"]
+            },
+            "description": "Update appointment status or details"
+          }
+        },
+        {
+          "name": "Cancel Appointment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✅ Appointment cancelled successfully', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "console.log('✅ Appointment cancelled/deleted successfully');",
+                  "// Clear appointment_id since appointment is deleted",
+                  "pm.environment.set('appointment_id', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/appointments/{{appointment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["appointments", "{{appointment_id}}"]
+            },
+            "description": "Cancel/delete an appointment"
+          }
+        }
+      ],
+      "description": "Appointment scheduling and management endpoints"
+    },
+    {
+      "name": "👥 Users Management",
+      "item": [
+        {
+          "name": "List All Doctors",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✅ Doctors list retrieved', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const doctors = pm.response.json();",
+                  "  pm.expect(doctors).to.be.an('array');",
+                  "});",
+                  "const doctors = pm.response.json();",
+                  "console.log(`✅ Found ${doctors.length} doctors in the system`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            },
+            "description": "Get all doctors in the system"
+          }
+        },
+        {
+          "name": "Get Current Doctor Info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('✅ Current doctor info retrieved', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const doctor = pm.response.json();",
+                  "  pm.expect(doctor.email).to.equal(pm.environment.get('doctor_email'));",
+                  "});",
+                  "console.log('✅ Current doctor information retrieved successfully');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            },
+            "description": "Get current doctor's detailed information"
+          }
+        }
+      ],
+      "description": "User and doctor management endpoints"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global pre-request script for all requests",
+          "console.log('🚀 Running CarePoint API request...');",
+          "",
+          "// Set base URL if not already set",
+          "if (!pm.environment.get('base_url')) {",
+          "  pm.environment.set('base_url', 'http://localhost:3001');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test script for error handling",
+          "if (pm.response.code >= 400) {",
+          "  console.log('❌ Request failed:', pm.response.code, pm.response.status);",
+          "  console.log('Response:', pm.response.text());",
+          "  console.log('Request URL:', pm.request.url.toString());",
+          "}",
+          "",
+          "// Log successful responses",
+          "if (pm.response.code >= 200 && pm.response.code < 300) {",
+          "  console.log('✅ Request successful:', pm.response.code, pm.response.status);",
+          "}"
+        ]
+      }
+    }
+  ]
+}

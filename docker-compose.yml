@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: carepoint_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - carepoint_postgres_data:/var/lib/postgresql/data
+    container_name: carepoint-postgres
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - carepoint_redis_data:/data
+    container_name: carepoint-redis
+
+volumes:
+  carepoint_postgres_data:
+  carepoint_redis_data:

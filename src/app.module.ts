@@ -1,0 +1,47 @@
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { AppController } from "./app.controller";
+import { AppService } from "./app.service";
+import { AuthModule } from "./auth/auth.module";
+import { UsersModule } from "./users/users.module";
+import { ClientsModule } from "./clients/clients.module";
+import { AppointmentsModule } from "./appointments/appointments.module";
+import { User } from "./users/entities/user.entity";
+import { Client } from "./clients/entities/client.entity";
+import { Appointment } from "./appointments/entities/appointment.entity";
+import { FakeUserMiddleware } from "./common/middleware/fake-user.middleware";
+import { RequestLoggerMiddleware } from "./common/middleware/request-logger.middleware";
+import { SystemController } from "./system/system.controller";
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ".env",
+    }),
+    TypeOrmModule.forRoot({
+      type: "postgres",
+      host: process.env.DATABASE_HOST || "localhost",
+      port: parseInt(process.env.DATABASE_PORT) || 5432,
+      username: process.env.DATABASE_USERNAME || "postgres",
+      password: process.env.DATABASE_PASSWORD || "password",
+      database: process.env.DATABASE_NAME || "carepoint_db",
+      entities: [User, Client, Appointment],
+      synchronize: process.env.NODE_ENV === "development",
+      logging: true,
+    }),
+    AuthModule,
+    UsersModule,
+    ClientsModule,
+    AppointmentsModule,
+  ],
+  controllers: [AppController, SystemController],
+  providers: [AppService],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(FakeUserMiddleware).forRoutes("*");
+    consumer.apply(RequestLoggerMiddleware).forRoutes("*");
+  }
+}
