@@ -1,233 +1,140 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
-  Query,
+  ForbiddenException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import {
-  Repository,
-  Between,
-  FindOptionsWhere,
-  FindManyOptions,
-} from "typeorm";
+import { Repository, Between, FindOptionsWhere } from "typeorm";
 import { Appointment, AppointmentStatus } from "./entities/appointment.entity";
 import { CreateAppointmentDto } from "./dto/create-appointment.dto";
+import { UpdateAppointmentDto } from "./dto/update-appointment.dto";
 import { User } from "../users/entities/user.entity";
-import { ClientsService } from "../clients/clients.service";
-import { PaginationQueryDto } from "../common/dto/pagination-query.dto";
-import { AppointmentsFilterDto } from "./dto/appointments-filter.dto";
 import { Client } from "../clients/entities/client.entity";
-
-interface Pagination {
-  page: number;
-  limit: number;
-  sort?: keyof Appointment;
-  order?: "ASC" | "DESC";
-}
-
-interface Filter {
-  start?: string;
-  end?: string;
-  status?: AppointmentStatus | keyof typeof AppointmentStatus | string;
-}
 
 @Injectable()
 export class AppointmentsService {
   constructor(
     @InjectRepository(Appointment)
-    private readonly appointmentsRepository: Repository<Appointment>,
-    private readonly clientsService: ClientsService, // must come from ClientsModule exports
-    @InjectRepository(User) // if you need doctor/user repository
-    private readonly userRepo: Repository<User>, // <-- this is index
+    private readonly appointmentRepository: Repository<Appointment>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Client)
+    private readonly clientRepository: Repository<Client>,
   ) {}
 
-  async create(
-    createAppointmentDto: CreateAppointmentDto,
-    doctor: User,
-  ): Promise<Appointment> {
-    const patient = await this.clientsService.findOne(
-      createAppointmentDto.patientId,
-    );
+  async create(createAppointmentDto: CreateAppointmentDto, user: any) {
+    const { doctorUserId, ...appointmentData } = createAppointmentDto;
 
-    // Check for conflicting appointments
-    const conflictingAppointment = await this.appointmentsRepository.findOne({
-      where: {
-        doctor: { id: doctor.id },
-        startTime: Between(
-          createAppointmentDto.startTime,
-          createAppointmentDto.endTime,
-        ),
-      },
+    // Find doctor
+    const doctor = await this.userRepository.findOne({
+      where: { id: doctorUserId },
     });
-
-    if (conflictingAppointment) {
-      throw new BadRequestException("Time slot is already booked");
+    if (!doctor) {
+      throw new NotFoundException("Doctor not found");
     }
 
-    const appointment = this.appointmentsRepository.create({
-      ...createAppointmentDto,
+    let patient: Client;
+
+    if (user.type === "patient") {
+      // Patient is booking for themselves
+      const patientId = user.patientId || user.id;
+      patient = await this.clientRepository.findOne({
+        where: { id: patientId },
+      });
+      if (!patient) {
+        throw new NotFoundException("Patient not found");
+      }
+    } else if (user.type === "doctor") {
+      // Doctor/Admin is booking for a patient (need patientId in DTO)
+      // For now, throw error - implement if needed
+      throw new ForbiddenException(
+        "Doctors cannot book appointments yet - implement patient selection",
+      );
+    }
+
+    // Create appointment
+    const appointment = this.appointmentRepository.create({
+      ...appointmentData,
       doctor,
       patient,
+      status: AppointmentStatus.PENDING,
     });
 
-    return this.appointmentsRepository.save(appointment);
+    return this.appointmentRepository.save(appointment);
   }
 
-  async findAllByDoctor(doctorId: string, @Query() query: PaginationQueryDto) {
-    return this.findAndCountAppointments(query, doctorId);
+  async findAll(user: any) {
+    if (user.type === "patient") {
+      // For patients, only return their appointments
+      const result = await this.listByPatient(
+        user.patientId || user.id,
+        { page: 1, limit: 50 },
+        {},
+      );
+      return result.items;
+    } else if (user.type === "doctor") {
+      // For doctors, return their appointments (existing functionality)
+      return this.appointmentRepository.find({
+        where: { doctor: { id: user.userId || user.id } },
+        relations: ["doctor", "patient"],
+        order: { startTime: "ASC" },
+      });
+    }
+
+    return [];
   }
 
-  async getCalendarData(
-    date: string,
-    doctorId: string,
-  ): Promise<Appointment[]> {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    return this.appointmentsRepository.find({
-      where: {
-        doctor: { id: doctorId },
-        startTime: Between(startOfDay, endOfDay),
-      },
-      relations: ["patient"],
-      order: { startTime: "ASC" },
-    });
-  }
-
-  async findOne(id: string): Promise<Appointment> {
-    const appointment = await this.appointmentsRepository.findOne({
+  async findOne(id: string, user: any) {
+    const appointment = await this.appointmentRepository.findOne({
       where: { id },
       relations: ["doctor", "patient"],
     });
+
     if (!appointment) {
       throw new NotFoundException("Appointment not found");
     }
+
+    // Check if user has access to this appointment
+    if (user.type === "patient") {
+      const patientId = user.patientId || user.id;
+      if (appointment.patient.id !== patientId) {
+        throw new ForbiddenException("Access denied");
+      }
+    } else if (user.type === "doctor") {
+      const doctorId = user.userId || user.id;
+      if (appointment.doctor.id !== doctorId) {
+        throw new ForbiddenException("Access denied");
+      }
+    }
+
     return appointment;
   }
 
   async update(
     id: string,
-    updateData: Partial<CreateAppointmentDto>,
-  ): Promise<Appointment> {
-    await this.appointmentsRepository.update(id, updateData);
-    return this.findOne(id);
-  }
-
-  async remove(id: string): Promise<void> {
-    const result = await this.appointmentsRepository.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException("Appointment not found");
-    }
-  }
-  async findAndCountAppointments(q: PaginationQueryDto, doctorId: string) {
-    const { page = 1, limit = 10, sort = "startTime", order = "ASC" } = q;
-    const skip = (page - 1) * limit;
-    const [items, total] = await this.appointmentsRepository.findAndCount({
-      order: { startTime: "ASC" },
-      skip,
-      take: limit,
-      where: { doctor: { id: doctorId } },
-      relations: ["patient", "doctor"],
-    });
-    return { items, meta: { total, page, limit } };
-  }
-
-  async listByDoctor(
-    doctorId: string,
-    q: PaginationQueryDto,
-    f: AppointmentsFilterDto,
+    updateAppointmentDto: UpdateAppointmentDto,
+    user: any,
   ) {
-    const { page = 1, limit = 10, sort = "startTime", order = "ASC" } = q;
-    const skip = (page - 1) * limit;
-
-    const qb = this.appointmentsRepository
-      .createQueryBuilder("appt")
-      .leftJoin("appt.doctor", "doctor")
-      .where("doctor.id = :doctorId", { doctorId });
-
-    if (f?.start && f?.end) {
-      const start = new Date(f.start);
-      const end = new Date(f.end);
-      qb.andWhere("appt.startTime BETWEEN :start AND :end", { start, end });
-    }
-
-    const sortable = new Set([
-      "startTime",
-      "endTime",
-      "createdAt",
-      "updatedAt",
-      "title",
-      "status",
-    ]);
-    const sortField = sortable.has(sort) ? sort : "startTime";
-
-    const [items, total] = await qb
-      .orderBy(`appt.${sortField}`, order as "ASC" | "DESC")
-      .skip(skip)
-      .take(limit)
-      .getManyAndCount();
-
-    console.log("Items:", items);
-    console.log("Total:", total);
-
-    return { items, meta: { total, page, limit } };
+    const appointment = await this.findOne(id, user);
+    Object.assign(appointment, updateAppointmentDto);
+    return this.appointmentRepository.save(appointment);
   }
 
-  async dayByDoctor(doctorId: string, date: string) {
-    const start = new Date(`${date}T00:00:00.000Z`);
-    const end = new Date(`${date}T23:59:59.999Z`);
-
-    return this.appointmentsRepository
-      .createQueryBuilder("appt")
-      .leftJoin("appt.doctor", "doctor")
-      .where("doctor.id = :doctorId", { doctorId })
-      .andWhere("appt.startTime BETWEEN :start AND :end", { start, end })
-      .orderBy("appt.startTime", "ASC")
-      .getMany();
+  async remove(id: string, user: any) {
+    const appointment = await this.findOne(id, user);
+    appointment.status = AppointmentStatus.CANCELLED;
+    return this.appointmentRepository.save(appointment);
   }
 
-  // Return available 30-min slots for a given doctor and date based on workingHours and existing appointments
-  async getAvailabilityForDoctor(doctorId: string, dateISO: string) {
-    const start = new Date(`${dateISO}T00:00:00.000Z`);
-    const end = new Date(`${dateISO}T23:59:59.999Z`);
-
-    const appointments = await this.appointmentsRepository.find({
-      where: {
-        doctor: { id: doctorId } as any,
-        startTime: Between(start, end),
-      },
-      select: ["startTime", "endTime"],
-    });
-
-    // naive example 09:00-17:00; replace with doctor's workingHours
-    const slots: string[] = [];
-    for (let h = 9; h < 17; h++) {
-      for (const m of [0, 30]) {
-        const hh = String(h).padStart(2, "0");
-        const mm = String(m).padStart(2, "0");
-        slots.push(`${hh}:${mm}`);
-      }
-    }
-
-    const busy = new Set(
-      appointments.map((a) => {
-        const d = new Date(a.startTime);
-        return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-      }),
-    );
-
-    const availableSlots = slots.filter((s) => !busy.has(s));
-    return { date: dateISO, availableSlots };
-  }
-
+  // Patient appointments listing
   async listByPatient(
     patientId: string,
-    pagination: Pagination,
-    filter: Filter,
+    pagination: { page: number; limit: number },
+    filter: {
+      start?: string;
+      end?: string;
+      status?: AppointmentStatus | string;
+    },
   ) {
     const where: FindOptionsWhere<Appointment> = {
       patient: { id: patientId } as Client,
@@ -243,16 +150,6 @@ export class AppointmentsService {
         : undefined;
       if (start && end) {
         (where as any).startTime = Between(start, end);
-      } else if (start) {
-        (where as any).startTime = Between(
-          start,
-          new Date("9999-12-31T23:59:59.999Z"),
-        );
-      } else if (end) {
-        (where as any).startTime = Between(
-          new Date("1970-01-01T00:00:00.000Z"),
-          end,
-        );
       }
     }
 
@@ -265,12 +162,9 @@ export class AppointmentsService {
     const limit = Math.min(Math.max(1, pagination.limit || 20), 100);
     const skip = (page - 1) * limit;
 
-    const options: FindManyOptions<Appointment> = {
+    const [items, total] = await this.appointmentRepository.findAndCount({
       where,
-      relations: {
-        doctor: true,
-        patient: true,
-      },
+      relations: ["doctor", "patient"],
       select: {
         id: true,
         startTime: true,
@@ -297,15 +191,10 @@ export class AppointmentsService {
           phone: true,
         },
       },
-      order: {
-        [pagination.sort || "startTime"]: pagination.order || "ASC",
-      } as any,
+      order: { startTime: "ASC" },
       skip,
       take: limit,
-    };
-
-    const [items, total] =
-      await this.appointmentsRepository.findAndCount(options);
+    });
 
     return {
       items,
@@ -315,6 +204,46 @@ export class AppointmentsService {
         limit,
         totalPages: Math.ceil(total / limit),
       },
+    };
+  }
+
+  // Doctor availability
+  async getAvailabilityForDoctor(doctorId: string, date: string) {
+    const start = new Date(`${date}T00:00:00.000Z`);
+    const end = new Date(`${date}T23:59:59.999Z`);
+
+    const appointments = await this.appointmentRepository.find({
+      where: {
+        doctor: { id: doctorId } as any,
+        startTime: Between(start, end),
+        status: AppointmentStatus.CONFIRMED, // Only count confirmed appointments
+      },
+      select: ["startTime", "endTime"],
+    });
+
+    // Generate time slots (9 AM to 5 PM, 30-minute intervals)
+    const slots: string[] = [];
+    for (let h = 9; h < 17; h++) {
+      for (const m of [0, 30]) {
+        const hh = String(h).padStart(2, "0");
+        const mm = String(m).padStart(2, "0");
+        slots.push(`${hh}:${mm}`);
+      }
+    }
+
+    // Remove booked slots
+    const busySlots = new Set(
+      appointments.map((apt) => {
+        const d = new Date(apt.startTime);
+        return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+      }),
+    );
+
+    const availableSlots = slots.filter((slot) => !busySlots.has(slot));
+
+    return {
+      date,
+      availableSlots,
     };
   }
 }

@@ -2,70 +2,192 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  NotFoundException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { UsersService } from "../users/users.service";
-import { RegisterDto } from "./dto/register.dto";
-import { LoginDto } from "./dto/login.dto";
-import * as bcrypt from "bcryptjs";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import * as bcrypt from "bcrypt";
+import { User } from "../users/entities/user.entity";
+import { Client } from "../clients/entities/client.entity";
+import { PatientRegisterDto } from "./dto/patient-register.dto";
+import { PatientLoginDto } from "./dto/patient-login.dto";
 
 @Injectable()
 export class AuthService {
   constructor(
-    private usersService: UsersService,
-    private jwtService: JwtService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Client)
+    private readonly clientRepository: Repository<Client>,
+    private readonly jwtService: JwtService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
-    const existingUser = await this.usersService.findByEmail(registerDto.email);
-    if (existingUser) {
-      throw new ConflictException("Email already exists");
-    }
-
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-    const user = await this.usersService.create({
-      ...registerDto,
-      password: hashedPassword,
-    });
-
-    return this.generateToken(user);
-  }
-
-  async login(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
-    if (!user) {
-      throw new UnauthorizedException("Invalid credentials");
-    }
-    return this.generateToken(user);
-  }
-
-  async validateUser(email: string, password: string) {
-    const user = await this.usersService.findByEmail(email);
-    if (user && (await bcrypt.compare(password, user.password))) {
+  // EXISTING DOCTOR AUTH METHODS (keep unchanged)
+  async validateUser(email: string, pass: string): Promise<any> {
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (user && (await bcrypt.compare(pass, user.password))) {
       const { password, ...result } = user;
       return result;
     }
     return null;
   }
 
-  private generateToken(user: any) {
-    const payload = { email: user.email, sub: user.id, role: user.role };
-
-    console.log(
-      "🔍 Generating JWT with secret:",
-      process.env.JWT_SECRET || "carepoint-secret",
-    );
-    console.log("🔍 JWT payload:", payload);
+  async login(user: any) {
+    const payload = {
+      email: user.email,
+      sub: user.id,
+      type: "doctor",
+      role: user.role,
+    };
     return {
       access_token: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        specialty: user.specialty,
-      },
+      user: user,
     };
+  }
+
+  // NEW PATIENT AUTH METHODS
+  async registerPatient(patientRegisterDto: PatientRegisterDto) {
+    const { email, password, ...patientData } = patientRegisterDto;
+
+    // Check if patient already exists
+    const existingPatient = await this.clientRepository.findOne({
+      where: { email },
+    });
+    if (existingPatient) {
+      throw new ConflictException("Patient with this email already exists");
+    }
+
+    // Check if email exists in doctor system
+    const existingDoctor = await this.userRepository.findOne({
+      where: { email },
+    });
+    if (existingDoctor) {
+      throw new ConflictException("Email already exists in the system");
+    }
+
+    // Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Create patient
+    const patient = this.clientRepository.create({
+      ...patientData,
+      email,
+      password: hashedPassword,
+    });
+
+    const savedPatient = await this.clientRepository.save(patient);
+
+    // Generate JWT token for patient
+    const payload = {
+      sub: savedPatient.id,
+      email: savedPatient.email,
+      type: "patient",
+      patientId: savedPatient.id,
+    };
+    const token = this.jwtService.sign(payload);
+
+    // Return patient data without password
+    const { password: _, ...patientWithoutPassword } = savedPatient;
+
+    return {
+      token,
+      user: patientWithoutPassword,
+    };
+  }
+
+  async loginPatient(patientLoginDto: PatientLoginDto) {
+    const { email, password } = patientLoginDto;
+
+    // Find patient by email
+    const patient = await this.clientRepository.findOne({ where: { email } });
+    if (!patient) {
+      throw new UnauthorizedException("Invalid credentials");
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, patient.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException("Invalid credentials");
+    }
+
+    // Check if patient is active
+    if (!patient.isActive) {
+      throw new UnauthorizedException("Account is deactivated");
+    }
+
+    // Generate JWT token for patient
+    const payload = {
+      sub: patient.id,
+      email: patient.email,
+      type: "patient",
+      patientId: patient.id,
+    };
+    const token = this.jwtService.sign(payload);
+
+    // Return patient data without password
+    const { password: _, ...patientWithoutPassword } = patient;
+
+    return {
+      token,
+      user: patientWithoutPassword,
+    };
+  }
+
+  // Validate patient token
+  async validatePatient(patientId: string): Promise<Client> {
+    const patient = await this.clientRepository.findOne({
+      where: { id: patientId },
+      select: [
+        "id",
+        "email",
+        "firstName",
+        "lastName",
+        "phone",
+        "dateOfBirth",
+        "address",
+        "emergencyContact",
+        "emergencyPhone",
+        "isActive",
+      ],
+    });
+
+    if (!patient) {
+      throw new NotFoundException("Patient not found");
+    }
+
+    if (!patient.isActive) {
+      throw new UnauthorizedException("Account is deactivated");
+    }
+
+    return patient;
+  }
+
+  // Validate doctor token (for existing system)
+  async validateDoctor(userId: string): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: [
+        "id",
+        "email",
+        "firstName",
+        "lastName",
+        "phone",
+        "role",
+        "specialty",
+        "isActive",
+      ],
+    });
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException("Account is deactivated");
+    }
+
+    return user;
   }
 }

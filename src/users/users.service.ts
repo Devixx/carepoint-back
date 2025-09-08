@@ -1,28 +1,30 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { ILike, Repository } from "typeorm";
-import { User, UserRole } from "./entities/user.entity";
-import { RegisterDto } from "../auth/dto/register.dto";
+import { Repository } from "typeorm";
+import { User } from "./entities/user.entity";
+import { CreateUserDto } from "./dto/create-user.dto";
+import { UpdateUserDto } from "./dto/update-user.dto";
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
-    private usersRepository: Repository<User>,
+    private readonly userRepository: Repository<User>,
   ) {}
 
-  async create(createUserDto: RegisterDto): Promise<User> {
-    const user = this.usersRepository.create(createUserDto);
-    return this.usersRepository.save(user);
+  create(createUserDto: CreateUserDto) {
+    const user = this.userRepository.create(createUserDto);
+    return this.userRepository.save(user);
   }
 
-  async findAll(): Promise<User[]> {
-    return this.usersRepository.find({
+  findAll() {
+    return this.userRepository.find({
       select: [
         "id",
-        "email",
         "firstName",
         "lastName",
+        "email",
+        "phone",
         "role",
         "specialty",
         "isActive",
@@ -31,72 +33,38 @@ export class UsersService {
     });
   }
 
-  async findById(id: string): Promise<User> {
-    const user = await this.usersRepository.findOne({ where: { id } });
-    if (!user) {
-      throw new NotFoundException("User not found");
-    }
-    return user;
-  }
-
-  async findByEmail(email: string): Promise<User> {
-    return this.usersRepository.findOne({ where: { email } });
-  }
-
-  async update(id: string, updateData: Partial<User>): Promise<User> {
-    await this.usersRepository.update(id, updateData);
-    return this.findById(id);
-  }
-
-  async remove(id: string): Promise<void> {
-    const result = await this.usersRepository.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException("User not found");
-    }
-  }
-
-  async findByRoleAndFilters(
-    role: UserRole,
-    filters: { specialty?: string; search?: string },
-  ) {
-    const where: any = { role };
-    if (filters.specialty) where.specialty = filters.specialty;
-    if (filters.search) {
-      where.firstName = ILike(`%${filters.search}%`);
-      // or build proper OR: firstName / lastName / specialty
-    }
-
-    return this.usersRepository.find({
-      where,
+  async findOne(id: string) {
+    const user = await this.userRepository.findOne({
+      where: { id },
       select: [
         "id",
-        "email",
         "firstName",
         "lastName",
+        "email",
         "phone",
+        "role",
         "specialty",
         "isActive",
-        "workingHours",
         "createdAt",
         "updatedAt",
       ],
-      order: { lastName: "ASC", firstName: "ASC" },
     });
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    return user;
   }
 
-  async findOneDoctorPublic(id: string) {
-    return this.usersRepository.findOne({
-      where: { id, role: UserRole.DOCTOR },
-      select: [
-        "id",
-        "email",
-        "firstName",
-        "lastName",
-        "phone",
-        "specialty",
-        "workingHours",
-        "isActive",
-      ],
-    });
+  async update(id: string, updateUserDto: UpdateUserDto) {
+    const user = await this.findOne(id);
+    Object.assign(user, updateUserDto);
+    return this.userRepository.save(user);
+  }
+
+  async remove(id: string) {
+    const user = await this.findOne(id);
+    return this.userRepository.remove(user);
   }
 }

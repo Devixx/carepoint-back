@@ -1,20 +1,17 @@
-import {
-  IsString,
-  IsEmail,
-  IsOptional,
-  IsDateString,
-  IsBoolean,
-} from "class-validator";
+import { IsString, IsOptional, IsDateString, IsEmail } from "class-validator";
 
-export class CreateClientDto {
+export class UpdateProfileDto {
+  @IsOptional()
   @IsString()
-  firstName: string;
+  firstName?: string;
 
+  @IsOptional()
   @IsString()
-  lastName: string;
+  lastName?: string;
 
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
   @IsOptional()
   @IsString()
@@ -35,8 +32,4 @@ export class CreateClientDto {
   @IsOptional()
   @IsString()
   emergencyPhone?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
 }

@@ -1,32 +1,26 @@
 import { NestFactory } from "@nestjs/core";
-import { AppModule } from "./app.module";
 import { ValidationPipe } from "@nestjs/common";
+import { AppModule } from "./app.module";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true, // Strip unknown properties
-      forbidNonWhitelisted: true, // Throw if unknown properties provided
-      transform: true, // Auto-transform primitives based on DTO types
-      transformOptions: { enableImplicitConversion: true },
-    }),
-  );
+  app.useGlobalPipes(new ValidationPipe());
 
   app.enableCors({
     origin: [
-      "http://localhost:3000", // doctor app
-      "http://localhost:3002", // patient app
-      "http://localhost:5173", // optional: Vite
+      "http://localhost:3000", // carepoint-front (doctor interface)
+      "http://localhost:3002", // carepoint-patient (patient interface)
     ],
-    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-    exposedHeaders: ["Content-Length", "Content-Range"],
-    credentials: true, // set true only if using cookies/Authorization with credentials
-    maxAge: 600, // cache preflight for 10 minutes
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   });
 
-  await app.listen(process.env.PORT || 3001);
+  await app.listen(3001);
+  console.log("Backend running on http://localhost:3001");
+  console.log("Serving both:");
+  console.log("- Doctor interface (carepoint-front): http://localhost:3000");
+  console.log("- Patient interface (carepoint-patient): http://localhost:3002");
 }
 bootstrap();

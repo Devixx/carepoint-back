@@ -1,37 +1,38 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
-import { Strategy, ExtractJwt } from "passport-jwt";
-import { UsersService } from "../../users/users.service";
+import { ExtractJwt, Strategy } from "passport-jwt";
+import { AuthService } from "../auth.service";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private usersService: UsersService) {
-    const secret = process.env.JWT_SECRET || "carepoint-secret";
-
-    console.log("🔍 JwtStrategy Constructor:");
-    console.log("🔍 - Secret from env:", process.env.JWT_SECRET);
-    console.log("🔍 - Final secret used:", secret);
-    console.log("🔍 - Secret length:", secret.length);
-
+  constructor(private readonly authService: AuthService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: secret,
+      secretOrKey: process.env.JWT_SECRET || "your-secret-key",
     });
   }
 
   async validate(payload: any) {
-    console.log("🔍 JWT Strategy validate called with payload:", payload);
-
     try {
-      const user = await this.usersService.findById(payload.sub);
-      console.log(
-        "✅ User found for validation:",
-        user ? user.email : "NOT FOUND",
-      );
-      return user;
+      // Check if it's a patient or doctor token
+      if (payload.type === "patient") {
+        const patient = await this.authService.validatePatient(payload.sub);
+        return {
+          ...patient,
+          type: "patient",
+          patientId: patient.id,
+        };
+      } else {
+        // Doctor/Admin validation (existing system)
+        const user = await this.authService.validateDoctor(payload.sub);
+        return {
+          ...user,
+          type: "doctor",
+          userId: user.id,
+        };
+      }
     } catch (error) {
-      console.log("❌ JWT validation error:", error.message);
       throw new UnauthorizedException("Invalid token");
     }
   }

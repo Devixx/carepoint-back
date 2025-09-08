@@ -12,8 +12,8 @@ import {
 } from "@nestjs/common";
 import { ClientsService } from "./clients.service";
 import { CreateClientDto } from "./dto/create-client.dto";
+import { UpdateClientDto } from "./dto/update-client.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { PaginationQueryDto } from "../auth/dto/pagination-query.dto";
 
 @Controller("clients")
 @UseGuards(JwtAuthGuard)
@@ -21,14 +21,13 @@ export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
   @Post()
-  create(@Body() createClientDto: CreateClientDto, @Request() req) {
-    return this.clientsService.create(createClientDto, req.user);
+  create(@Body() createClientDto: CreateClientDto) {
+    return this.clientsService.create(createClientDto); // Remove req.user parameter
   }
 
   @Get()
-  async findAll(@Request() req, @Query() query: PaginationQueryDto) {
-    const doctorId = req.user?.id || process.env.DEV_DOCTOR_ID;
-    return this.clientsService.findAllByDoctorPaginated(doctorId, query);
+  findAll() {
+    return this.clientsService.findAll();
   }
 
   @Get(":id")
@@ -37,10 +36,7 @@ export class ClientsController {
   }
 
   @Patch(":id")
-  update(
-    @Param("id") id: string,
-    @Body() updateClientDto: Partial<CreateClientDto>,
-  ) {
+  update(@Param("id") id: string, @Body() updateClientDto: UpdateClientDto) {
     return this.clientsService.update(id, updateClientDto);
   }
 

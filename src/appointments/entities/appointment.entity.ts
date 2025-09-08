@@ -10,19 +10,12 @@ import { User } from "../../users/entities/user.entity";
 import { Client } from "../../clients/entities/client.entity";
 
 export enum AppointmentStatus {
-  SCHEDULED = "scheduled",
+  PENDING = "pending",
   CONFIRMED = "confirmed",
-  IN_PROGRESS = "in_progress",
-  COMPLETED = "completed",
   CANCELLED = "cancelled",
+  COMPLETED = "completed",
   NO_SHOW = "no_show",
-}
-
-export enum AppointmentType {
-  CONSULTATION = "consultation",
-  FOLLOW_UP = "follow_up",
-  EMERGENCY = "emergency",
-  ROUTINE_CHECKUP = "routine_checkup",
+  IN_PROGRESS = "in_progress",
 }
 
 @Entity("appointments")
@@ -39,33 +32,29 @@ export class Appointment {
   @Column({
     type: "enum",
     enum: AppointmentStatus,
-    default: AppointmentStatus.SCHEDULED,
+    default: AppointmentStatus.PENDING,
   })
   status: AppointmentStatus;
 
-  @Column({
-    type: "enum",
-    enum: AppointmentType,
-    default: AppointmentType.CONSULTATION,
-  })
-  type: AppointmentType;
+  @Column()
+  type: string;
 
   @Column()
   title: string;
 
   @Column({ type: "text", nullable: true })
-  description: string;
+  description?: string;
 
   @Column({ type: "text", nullable: true })
-  notes: string;
+  notes?: string;
 
   @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
-  fee: number;
+  fee?: number;
 
-  @ManyToOne(() => User, (user) => user.appointments)
+  @ManyToOne(() => User, (user) => user.doctorAppointments, { eager: false })
   doctor: User;
 
-  @ManyToOne(() => Client, (client) => client.appointments)
+  @ManyToOne(() => Client, (client) => client.appointments, { eager: false })
   patient: Client;
 
   @CreateDateColumn()

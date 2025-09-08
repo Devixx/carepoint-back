@@ -1,35 +1,34 @@
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
-import { UsersModule } from "../users/users.module";
-import { AuthController } from "./auth.controller";
+import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthService } from "./auth.service";
+import { AuthController } from "./auth.controller";
+import { PatientsAuthController } from "./patients-auth.controller";
 import { JwtStrategy } from "./strategies/jwt.strategy";
+import { LocalStrategy } from "./strategies/local.strategy";
+import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import { LocalAuthGuard } from "./guards/local-auth.guard";
+import { User } from "../users/entities/user.entity";
+import { Client } from "../clients/entities/client.entity";
 
 @Module({
   imports: [
-    PassportModule,
+    TypeOrmModule.forFeature([User, Client]),
+    PassportModule.register({ defaultStrategy: "jwt" }),
     JwtModule.register({
-      secret: process.env.JWT_SECRET || "carepoint-secret",
+      secret: process.env.JWT_SECRET || "your-secret-key",
       signOptions: { expiresIn: "7d" },
     }),
-    UsersModule,
   ],
-  providers: [AuthService, JwtStrategy],
-  controllers: [AuthController],
-  exports: [AuthService],
+  controllers: [AuthController, PatientsAuthController],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    LocalStrategy,
+    JwtAuthGuard,
+    LocalAuthGuard,
+  ],
+  exports: [AuthService, JwtAuthGuard],
 })
-export class AuthModule {
-  constructor() {
-    console.log("🔍 AuthModule Constructor:");
-    console.log("🔍 - Secret from env:", process.env.JWT_SECRET);
-    console.log(
-      "🔍 - Final secret used:",
-      process.env.JWT_SECRET || "carepoint-secret",
-    );
-    console.log(
-      "🔍 - Secret length:",
-      (process.env.JWT_SECRET || "carepoint-secret").length,
-    );
-  }
-}
+export class AuthModule {}

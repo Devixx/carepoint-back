@@ -1,25 +1,17 @@
-import {
-  IsString,
-  IsDate,
-  IsOptional,
-  IsEnum,
-  IsUUID,
-  IsNumber,
-} from "class-validator";
-import { Type } from "class-transformer";
-import {
-  AppointmentStatus,
-  AppointmentType,
-} from "../entities/appointment.entity";
+import { IsString, IsDateString, IsOptional, IsUUID } from "class-validator";
 
 export class CreateAppointmentDto {
-  @Type(() => Date)
-  @IsDate()
-  startTime: Date;
+  @IsUUID()
+  doctorUserId: string; // Add this field
 
-  @Type(() => Date)
-  @IsDate()
-  endTime: Date;
+  @IsDateString()
+  startTime: string;
+
+  @IsDateString()
+  endTime: string;
+
+  @IsString()
+  type: string;
 
   @IsString()
   title: string;
@@ -31,19 +23,4 @@ export class CreateAppointmentDto {
   @IsOptional()
   @IsString()
   notes?: string;
-
-  @IsOptional()
-  @IsEnum(AppointmentType)
-  type?: AppointmentType;
-
-  @IsOptional()
-  @IsEnum(AppointmentStatus)
-  status?: AppointmentStatus;
-
-  @IsOptional()
-  @IsNumber()
-  fee?: number;
-
-  @IsUUID()
-  patientId: string;
 }

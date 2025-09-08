@@ -2,12 +2,10 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
-  OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from "typeorm";
-import { User } from "../../users/entities/user.entity";
 import { Appointment } from "../../appointments/entities/appointment.entity";
 
 @Entity("clients")
@@ -25,28 +23,25 @@ export class Client {
   email: string;
 
   @Column({ nullable: true })
-  phone: string;
+  password: string;
+
+  @Column({ nullable: true })
+  phone?: string;
 
   @Column({ type: "date", nullable: true })
-  dateOfBirth: Date;
-
-  @Column({ nullable: true })
-  address: string;
-
-  @Column({ nullable: true })
-  emergencyContact: string;
-
-  @Column({ nullable: true })
-  emergencyPhone: string;
+  dateOfBirth?: string;
 
   @Column({ type: "text", nullable: true })
-  medicalHistory: string;
+  address?: string;
 
-  @Column({ type: "text", nullable: true })
-  notes: string;
+  @Column({ nullable: true })
+  emergencyContact?: string;
 
-  @ManyToOne(() => User, (user) => user.patients)
-  doctor: User;
+  @Column({ nullable: true })
+  emergencyPhone?: string;
+
+  @Column({ default: true })
+  isActive: boolean;
 
   @OneToMany(() => Appointment, (appointment) => appointment.patient)
   appointments: Appointment[];

@@ -1,12 +1,12 @@
 import {
-  IsString,
   IsEmail,
+  IsString,
+  MinLength,
   IsOptional,
   IsDateString,
-  IsBoolean,
 } from "class-validator";
 
-export class CreateClientDto {
+export class PatientRegisterDto {
   @IsString()
   firstName: string;
 
@@ -15,6 +15,10 @@ export class CreateClientDto {
 
   @IsEmail()
   email: string;
+
+  @IsString()
+  @MinLength(8)
+  password: string;
 
   @IsOptional()
   @IsString()
@@ -35,8 +39,4 @@ export class CreateClientDto {
   @IsOptional()
   @IsString()
   emergencyPhone?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
 }
