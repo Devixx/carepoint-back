@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { User } from "./entities/user.entity";
+import { ILike, Repository } from "typeorm";
+import { User, UserRole } from "./entities/user.entity";
 import { RegisterDto } from "../auth/dto/register.dto";
 
 @Injectable()
@@ -53,5 +53,50 @@ export class UsersService {
     if (result.affected === 0) {
       throw new NotFoundException("User not found");
     }
+  }
+
+  async findByRoleAndFilters(
+    role: UserRole,
+    filters: { specialty?: string; search?: string },
+  ) {
+    const where: any = { role };
+    if (filters.specialty) where.specialty = filters.specialty;
+    if (filters.search) {
+      where.firstName = ILike(`%${filters.search}%`);
+      // or build proper OR: firstName / lastName / specialty
+    }
+
+    return this.usersRepository.find({
+      where,
+      select: [
+        "id",
+        "email",
+        "firstName",
+        "lastName",
+        "phone",
+        "specialty",
+        "isActive",
+        "workingHours",
+        "createdAt",
+        "updatedAt",
+      ],
+      order: { lastName: "ASC", firstName: "ASC" },
+    });
+  }
+
+  async findOneDoctorPublic(id: string) {
+    return this.usersRepository.findOne({
+      where: { id, role: UserRole.DOCTOR },
+      select: [
+        "id",
+        "email",
+        "firstName",
+        "lastName",
+        "phone",
+        "specialty",
+        "workingHours",
+        "isActive",
+      ],
+    });
   }
 }

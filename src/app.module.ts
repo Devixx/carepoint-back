@@ -13,6 +13,7 @@ import { Appointment } from "./appointments/entities/appointment.entity";
 import { FakeUserMiddleware } from "./common/middleware/fake-user.middleware";
 import { RequestLoggerMiddleware } from "./common/middleware/request-logger.middleware";
 import { SystemController } from "./system/system.controller";
+import { DoctorsModule } from "./doctors/doctors.module";
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { SystemController } from "./system/system.controller";
     UsersModule,
     ClientsModule,
     AppointmentsModule,
+    DoctorsModule,
   ],
   controllers: [AppController, SystemController],
   providers: [AppService],

@@ -14,10 +14,19 @@ async function bootstrap() {
     }),
   );
 
-  app.enableCors({ origin: "http://localhost:3000", credentials: true });
+  app.enableCors({
+    origin: [
+      "http://localhost:3000", // doctor app
+      "http://localhost:3002", // patient app
+      "http://localhost:5173", // optional: Vite
+    ],
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    exposedHeaders: ["Content-Length", "Content-Range"],
+    credentials: true, // set true only if using cookies/Authorization with credentials
+    maxAge: 600, // cache preflight for 10 minutes
+  });
 
-  const port = process.env.PORT || 3001;
-  await app.listen(port);
-  console.log(`CarePoint running on http://localhost:${port}`);
+  await app.listen(process.env.PORT || 3001);
 }
 bootstrap();

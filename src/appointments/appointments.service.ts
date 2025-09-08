@@ -5,13 +5,32 @@ import {
   Query,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, Between } from "typeorm";
-import { Appointment } from "./entities/appointment.entity";
+import {
+  Repository,
+  Between,
+  FindOptionsWhere,
+  FindManyOptions,
+} from "typeorm";
+import { Appointment, AppointmentStatus } from "./entities/appointment.entity";
 import { CreateAppointmentDto } from "./dto/create-appointment.dto";
 import { User } from "../users/entities/user.entity";
 import { ClientsService } from "../clients/clients.service";
 import { PaginationQueryDto } from "../common/dto/pagination-query.dto";
 import { AppointmentsFilterDto } from "./dto/appointments-filter.dto";
+import { Client } from "../clients/entities/client.entity";
+
+interface Pagination {
+  page: number;
+  limit: number;
+  sort?: keyof Appointment;
+  order?: "ASC" | "DESC";
+}
+
+interface Filter {
+  start?: string;
+  end?: string;
+  status?: AppointmentStatus | keyof typeof AppointmentStatus | string;
+}
 
 @Injectable()
 export class AppointmentsService {
@@ -169,5 +188,133 @@ export class AppointmentsService {
       .andWhere("appt.startTime BETWEEN :start AND :end", { start, end })
       .orderBy("appt.startTime", "ASC")
       .getMany();
+  }
+
+  // Return available 30-min slots for a given doctor and date based on workingHours and existing appointments
+  async getAvailabilityForDoctor(doctorId: string, dateISO: string) {
+    const start = new Date(`${dateISO}T00:00:00.000Z`);
+    const end = new Date(`${dateISO}T23:59:59.999Z`);
+
+    const appointments = await this.appointmentsRepository.find({
+      where: {
+        doctor: { id: doctorId } as any,
+        startTime: Between(start, end),
+      },
+      select: ["startTime", "endTime"],
+    });
+
+    // naive example 09:00-17:00; replace with doctor's workingHours
+    const slots: string[] = [];
+    for (let h = 9; h < 17; h++) {
+      for (const m of [0, 30]) {
+        const hh = String(h).padStart(2, "0");
+        const mm = String(m).padStart(2, "0");
+        slots.push(`${hh}:${mm}`);
+      }
+    }
+
+    const busy = new Set(
+      appointments.map((a) => {
+        const d = new Date(a.startTime);
+        return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      }),
+    );
+
+    const availableSlots = slots.filter((s) => !busy.has(s));
+    return { date: dateISO, availableSlots };
+  }
+
+  async listByPatient(
+    patientId: string,
+    pagination: Pagination,
+    filter: Filter,
+  ) {
+    const where: FindOptionsWhere<Appointment> = {
+      patient: { id: patientId } as Client,
+    };
+
+    // Date range filter
+    if (filter.start || filter.end) {
+      const start = filter.start
+        ? new Date(`${filter.start}T00:00:00.000Z`)
+        : undefined;
+      const end = filter.end
+        ? new Date(`${filter.end}T23:59:59.999Z`)
+        : undefined;
+      if (start && end) {
+        (where as any).startTime = Between(start, end);
+      } else if (start) {
+        (where as any).startTime = Between(
+          start,
+          new Date("9999-12-31T23:59:59.999Z"),
+        );
+      } else if (end) {
+        (where as any).startTime = Between(
+          new Date("1970-01-01T00:00:00.000Z"),
+          end,
+        );
+      }
+    }
+
+    // Status filter
+    if (filter.status) {
+      (where as any).status = filter.status as AppointmentStatus;
+    }
+
+    const page = Math.max(1, pagination.page || 1);
+    const limit = Math.min(Math.max(1, pagination.limit || 20), 100);
+    const skip = (page - 1) * limit;
+
+    const options: FindManyOptions<Appointment> = {
+      where,
+      relations: {
+        doctor: true,
+        patient: true,
+      },
+      select: {
+        id: true,
+        startTime: true,
+        endTime: true,
+        status: true,
+        type: true,
+        title: true,
+        description: true,
+        notes: true,
+        fee: true,
+        doctor: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          specialty: true,
+        },
+        patient: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+        },
+      },
+      order: {
+        [pagination.sort || "startTime"]: pagination.order || "ASC",
+      } as any,
+      skip,
+      take: limit,
+    };
+
+    const [items, total] =
+      await this.appointmentsRepository.findAndCount(options);
+
+    return {
+      items,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }
