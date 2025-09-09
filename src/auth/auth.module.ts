@@ -17,7 +17,8 @@ import { Client } from "../clients/entities/client.entity";
     TypeOrmModule.forFeature([User, Client]),
     PassportModule.register({ defaultStrategy: "jwt" }),
     JwtModule.register({
-      secret: process.env.JWT_SECRET || "your-secret-key",
+      secret:
+        process.env.JWT_SECRET || "a-string-secret-at-least-256-bits-long",
       signOptions: { expiresIn: "7d" },
     }),
   ],

@@ -18,7 +18,20 @@ export class PatientsProfileController {
 
   @Get("profile")
   async getProfile(@Request() req) {
-    const patientId = req.user.patientId || req.user.sub;
+    console.log("👤 Profile Controller - Request user:", {
+      id: req.user?.id,
+      email: req.user?.email,
+      type: req.user?.type,
+      patientId: req.user?.patientId,
+    });
+
+    if (!req.user || req.user.type !== "patient") {
+      throw new Error("Access denied - patients only");
+    }
+
+    const patientId = req.user.patientId || req.user.id;
+    console.log("👤 Fetching profile for patient ID:", patientId);
+
     return this.clientsService.findOne(patientId);
   }
 
@@ -27,7 +40,20 @@ export class PatientsProfileController {
     @Request() req,
     @Body(ValidationPipe) updateProfileDto: UpdateProfileDto,
   ) {
-    const patientId = req.user.patientId || req.user.sub;
+    console.log("✏️ Update Profile - Request user:", {
+      id: req.user?.id,
+      email: req.user?.email,
+      type: req.user?.type,
+      patientId: req.user?.patientId,
+    });
+
+    if (!req.user || req.user.type !== "patient") {
+      throw new Error("Access denied - patients only");
+    }
+
+    const patientId = req.user.patientId || req.user.id;
+    console.log("✏️ Updating profile for patient ID:", patientId);
+
     return this.clientsService.updateProfile(patientId, updateProfileDto);
   }
 }

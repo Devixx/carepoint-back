@@ -24,21 +24,35 @@ export class PatientsAppointmentsController {
     @Query("start") start?: string,
     @Query("end") end?: string,
   ) {
-    console.log("Request user:", req.user); // Debug log
+    console.log("🏥 Patient Appointments Controller");
+    console.log("📋 Request user:", {
+      id: req.user?.id,
+      email: req.user?.email,
+      type: req.user?.type,
+      patientId: req.user?.patientId,
+    });
 
     // Ensure this is a patient making the request
     if (!req.user || req.user.type !== "patient") {
-      console.error("Access denied - not a patient:", req.user);
+      console.error("❌ Access denied - not a patient:", req.user?.type);
       throw new ForbiddenException("Access denied - patients only");
     }
 
     const patientId = req.user.patientId || req.user.id;
-    console.log("Patient ID:", patientId); // Debug log
+    console.log("👤 Using patient ID:", patientId);
 
-    return this.appointmentsService.listByPatient(
-      patientId,
-      { page: Number(page), limit: Number(limit) },
-      { status, start, end },
-    );
+    try {
+      const result = await this.appointmentsService.listByPatient(
+        patientId,
+        { page: Number(page), limit: Number(limit) },
+        { status, start, end },
+      );
+
+      console.log("✅ Appointments retrieved:", result.items?.length || 0);
+      return result;
+    } catch (error) {
+      console.error("❌ Error retrieving appointments:", error);
+      throw error;
+    }
   }
 }

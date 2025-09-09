@@ -137,31 +137,55 @@ export class AuthService {
 
   // Validate patient token
   async validatePatient(patientId: string): Promise<Client> {
-    const patient = await this.clientRepository.findOne({
-      where: { id: patientId },
-      select: [
-        "id",
-        "email",
-        "firstName",
-        "lastName",
-        "phone",
-        "dateOfBirth",
-        "address",
-        "emergencyContact",
-        "emergencyPhone",
-        "isActive",
-      ],
-    });
+    console.log(
+      "\n🔍 AuthService.validatePatient() called with ID:",
+      patientId,
+    );
 
-    if (!patient) {
-      throw new NotFoundException("Patient not found");
+    try {
+      const patient = await this.clientRepository.findOne({
+        where: { id: patientId },
+        select: [
+          "id",
+          "email",
+          "firstName",
+          "lastName",
+          "phone",
+          "dateOfBirth",
+          "address",
+          "emergencyContact",
+          "emergencyPhone",
+          "isActive",
+        ],
+      });
+
+      console.log(
+        "🔍 Database query result:",
+        patient ? "Patient found" : "Patient not found",
+      );
+
+      if (!patient) {
+        console.error("❌ Patient not found in database:", patientId);
+        throw new NotFoundException("Patient not found");
+      }
+
+      console.log("👤 Patient details:", {
+        id: patient.id,
+        email: patient.email,
+        isActive: patient.isActive,
+      });
+
+      if (!patient.isActive) {
+        console.error("❌ Patient account deactivated:", patientId);
+        throw new UnauthorizedException("Account is deactivated");
+      }
+
+      console.log("✅ Patient validation successful");
+      return patient;
+    } catch (error) {
+      console.error("❌ Error in validatePatient:", error);
+      throw error;
     }
-
-    if (!patient.isActive) {
-      throw new UnauthorizedException("Account is deactivated");
-    }
-
-    return patient;
   }
 
   // Validate doctor token (for existing system)
