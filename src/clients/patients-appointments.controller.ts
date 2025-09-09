@@ -1,4 +1,11 @@
-import { Controller, Get, Query, UseGuards, Request } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  Request,
+  ForbiddenException,
+} from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { AppointmentsService } from "../appointments/appointments.service";
 import { AppointmentStatus } from "../appointments/entities/appointment.entity";
@@ -17,12 +24,16 @@ export class PatientsAppointmentsController {
     @Query("start") start?: string,
     @Query("end") end?: string,
   ) {
+    console.log("Request user:", req.user); // Debug log
+
     // Ensure this is a patient making the request
-    if (req.user.type !== "patient") {
-      throw new Error("Access denied");
+    if (!req.user || req.user.type !== "patient") {
+      console.error("Access denied - not a patient:", req.user);
+      throw new ForbiddenException("Access denied - patients only");
     }
 
     const patientId = req.user.patientId || req.user.id;
+    console.log("Patient ID:", patientId); // Debug log
 
     return this.appointmentsService.listByPatient(
       patientId,

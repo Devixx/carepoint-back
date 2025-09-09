@@ -14,9 +14,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    console.log("JWT Payload:", payload); // Debug log
+
     try {
-      // Check if it's a patient or doctor token
       if (payload.type === "patient") {
+        console.log("Validating patient:", payload.sub); // Debug log
         const patient = await this.authService.validatePatient(payload.sub);
         return {
           ...patient,
@@ -24,7 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           patientId: patient.id,
         };
       } else {
-        // Doctor/Admin validation (existing system)
+        console.log("Validating doctor:", payload.sub); // Debug log
         const user = await this.authService.validateDoctor(payload.sub);
         return {
           ...user,
@@ -33,6 +35,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         };
       }
     } catch (error) {
+      console.error("JWT validation error:", error); // Debug log
       throw new UnauthorizedException("Invalid token");
     }
   }

@@ -11,6 +11,7 @@ import { User } from "./users/entities/user.entity";
 import { Client } from "./clients/entities/client.entity";
 import { Appointment } from "./appointments/entities/appointment.entity";
 import { SystemController } from "./system/system.controller";
+import { SeedModule } from "./database/seed.module";
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SystemController } from "./system/system.controller";
     UsersModule,
     ClientsModule,
     AppointmentsModule,
+    SeedModule,
   ],
   controllers: [AppController, SystemController],
   providers: [AppService],

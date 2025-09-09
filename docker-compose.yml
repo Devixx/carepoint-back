@@ -11,6 +11,22 @@ services:
       - carepoint_postgres_data:/var/lib/postgresql/data
     container_name: carepoint-postgres
 
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=your_password
+      - DB_NAME=carepoint
+    command: npm run seed
+    profiles:
+      - seed
+
   redis:
     image: redis:7-alpine
     ports:
