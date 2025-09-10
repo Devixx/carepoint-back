@@ -7,6 +7,7 @@ import {
   OneToMany,
 } from "typeorm";
 import { Appointment } from "../../appointments/entities/appointment.entity";
+import { Client } from "../../clients/entities/client.entity";
 
 export enum UserRole {
   ADMIN = "admin",
@@ -55,4 +56,10 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @OneToMany(() => Client, (client) => client.doctor)
+  patients: Client[];
+
+  @Column({ type: "json", nullable: true })
+  workingHours: Record<string, any>;
 }

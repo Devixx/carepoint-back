@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 import { User } from "../users/entities/user.entity";
 import { Client } from "../clients/entities/client.entity";
 import { Appointment } from "../appointments/entities/appointment.entity";
+import { PharmacyService } from "../pharmacy/pharmacy.service";
 
 interface ChatResponse {
   message: string;
@@ -20,6 +21,7 @@ export class ChatService {
     private readonly clientRepository: Repository<Client>,
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
+    private readonly pharmacyService: PharmacyService,
   ) {}
 
   async processMessage(
@@ -57,8 +59,36 @@ export class ChatService {
       return this.handleEmergencyQuery();
     }
 
+    if (this.isPharmacyQuery(lowerMessage)) {
+      console.log("🏥 Detected pharmacy query");
+      return await this.handlePharmacyQuery(lowerMessage);
+    }
+
     // Default fallback
     return this.getDefaultResponse();
+  }
+
+  private isPharmacyQuery(message: string): boolean {
+    const pharmacyKeywords = [
+      "pharmacy",
+      "pharmacie",
+      "garde",
+      "duty",
+      "medication",
+      "médicament",
+      "prescription",
+      "ordonnance",
+      "open",
+      "ouvert",
+      "night",
+      "nuit",
+      "sunday",
+      "dimanche",
+      "24h",
+      "urgence pharmacie",
+      "pharmacie urgence",
+    ];
+    return pharmacyKeywords.some((keyword) => message.includes(keyword));
   }
 
   // Intent detection methods
@@ -416,6 +446,227 @@ export class ChatService {
         "How to book appointment?",
         "CNS coverage info",
         "Emergency contacts",
+      ],
+    };
+  }
+
+  private async handlePharmacyQuery(message: string): Promise<ChatResponse> {
+    console.log("🏥 Handling pharmacy query:", message);
+
+    if (
+      message.includes("garde") ||
+      message.includes("duty") ||
+      message.includes("today") ||
+      message.includes("aujourd'hui")
+    ) {
+      console.log("📋 Fetching today's duty pharmacies");
+
+      try {
+        const dutyInfo = await this.pharmacyService.getTodayDutyPharmacies();
+
+        let responseMessage = `🏥 **PHARMACIES DE GARDE - ${dutyInfo.date}**\n\n`;
+
+        dutyInfo.pharmacies.forEach((pharmacy, index) => {
+          const emergencyIcon = pharmacy.isEmergency ? "🚨 " : "";
+          responseMessage += `**${index + 1}. ${emergencyIcon}${pharmacy.name}**\n`;
+          responseMessage += `📍 ${pharmacy.address}\n`;
+          responseMessage += `📞 ${pharmacy.phone}\n`;
+          responseMessage += `🕐 ${pharmacy.hours}\n`;
+          responseMessage += `🌍 ${pharmacy.region}\n\n`;
+        });
+
+        // Add data source information
+        const sourceInfo =
+          dutyInfo.source === "real-time"
+            ? "✅ Données officielles temps réel"
+            : dutyInfo.source === "cached"
+              ? "📄 Données mises en cache"
+              : "⚠️ Données de secours - Confirmez au 112";
+
+        responseMessage += `${sourceInfo}\n`;
+        responseMessage += `🕒 Dernière mise à jour: ${dutyInfo.lastUpdated.toLocaleTimeString("fr-LU")}\n\n`;
+        responseMessage += `⚠️ **Participation:** 12,50€ pour service de garde\n\n`;
+        responseMessage += dutyInfo.emergencyInfo;
+
+        const suggestions =
+          dutyInfo.source === "real-time"
+            ? [
+                "Emergency pharmacy info",
+                "Find pharmacy near me",
+                "Refresh data",
+              ]
+            : [
+                "Refresh pharmacy data",
+                "Emergency pharmacy info",
+                "Find pharmacy near me",
+              ];
+
+        return {
+          message: responseMessage,
+          suggestions,
+          data: {
+            pharmacies: dutyInfo.pharmacies,
+            source: dutyInfo.source,
+            lastUpdated: dutyInfo.lastUpdated,
+          },
+        };
+      } catch (error) {
+        console.error("❌ Error fetching pharmacy data:", error);
+
+        return {
+          message: `❌ **ERREUR**\n\nImpossible de récupérer les données des pharmacies de garde.\n\n📞 **En cas d'urgence:**\n• Appelez le 112\n• Pharmacie de l'Hôpital: +352 44 11 33 02\n\nEssayez de nouveau dans quelques minutes.`,
+          suggestions: [
+            "Emergency contacts",
+            "Try again",
+            "Find pharmacy near me",
+          ],
+        };
+      }
+    }
+
+    if (
+      message.includes("refresh") ||
+      message.includes("actualiser") ||
+      message.includes("update")
+    ) {
+      console.log("🔄 Refreshing pharmacy data");
+
+      try {
+        const refreshedData = await this.pharmacyService.refreshPharmacyData();
+
+        return {
+          message: `🔄 **DONNÉES ACTUALISÉES**\n\n✅ Pharmacies de garde mises à jour!\n🕒 ${refreshedData.lastUpdated.toLocaleTimeString("fr-LU")}\n📊 Source: ${refreshedData.source}\n\nDemandez "pharmacies de garde today" pour voir la liste.`,
+          suggestions: [
+            "Today's duty pharmacies",
+            "Emergency pharmacy",
+            "Find pharmacy near me",
+          ],
+        };
+      } catch (error) {
+        console.error("❌ Error refreshing pharmacy data:", error);
+
+        return {
+          message: `❌ **ERREUR DE MISE À JOUR**\n\nImpossible d'actualiser les données temps réel.\n💡 Essayez plus tard ou appelez le 112.`,
+          suggestions: [
+            "Today's duty pharmacies",
+            "Emergency contacts",
+            "Find pharmacy near me",
+          ],
+        };
+      }
+    }
+
+    if (
+      message.includes("emergency") ||
+      message.includes("urgence") ||
+      message.includes("24h")
+    ) {
+      console.log("🚨 Providing emergency pharmacy info");
+
+      return {
+        message: this.pharmacyService.getEmergencyPharmacyInfo(),
+        suggestions: [
+          "Today's duty pharmacies",
+          "Find pharmacy near me",
+          "Emergency contacts",
+        ],
+      };
+    }
+
+    if (
+      message.includes("near") ||
+      message.includes("proche") ||
+      message.includes("find")
+    ) {
+      console.log("🔍 Providing pharmacy search info");
+
+      return {
+        message: `🔍 **TROUVER UNE PHARMACIE:**\n\n📱 **Applications mobiles:**\n• "Pharmacies Luxembourg" (App Store/Google Play)\n• "MyGuichet.lu"\n\n🌐 **Sites web:**\n• www.sante.lu\n• www.one.lu\n\n📞 **Par téléphone:**\n• 112 (demander pharmacie de garde)\n\n📍 **Régions principales:**\n• Centre: Luxembourg-Ville, Kirchberg\n• Sud: Esch-sur-Alzette, Dudelange\n• Nord: Ettelbruck, Diekirch\n• Est: Grevenmacher, Echternach\n\nTapez le nom de votre ville!`,
+        suggestions: [
+          "Luxembourg-Ville pharmacies",
+          "Esch-sur-Alzette pharmacies",
+          "Today's duty pharmacies",
+          "Emergency pharmacy",
+        ],
+      };
+    }
+
+    // Handle city-specific searches
+    const cities = [
+      "luxembourg",
+      "esch",
+      "ettelbruck",
+      "differdange",
+      "dudelange",
+      "kirchberg",
+      "wiltz",
+      "diekirch",
+    ];
+    const mentionedCity = cities.find((city) => message.includes(city));
+
+    if (mentionedCity) {
+      console.log("🏙️ Searching pharmacies for city:", mentionedCity);
+
+      try {
+        const cityPharmacies =
+          this.pharmacyService.searchPharmaciesByCity(mentionedCity);
+
+        if (cityPharmacies.length > 0) {
+          let responseMessage = `🏥 **PHARMACIES - ${mentionedCity.toUpperCase()}**\n\n`;
+
+          cityPharmacies.forEach((pharmacy, index) => {
+            const emergencyIcon = pharmacy.isEmergency ? "🚨 " : "";
+            responseMessage += `**${index + 1}. ${emergencyIcon}${pharmacy.name}**\n`;
+            responseMessage += `📍 ${pharmacy.address}\n`;
+            responseMessage += `📞 ${pharmacy.phone}\n`;
+            responseMessage += `🕐 ${pharmacy.hours}\n\n`;
+          });
+
+          responseMessage += `💡 **Conseil:** Appelez avant de vous déplacer!`;
+
+          return {
+            message: responseMessage,
+            suggestions: [
+              "Today's duty pharmacies",
+              "Emergency pharmacy",
+              "Find other cities",
+            ],
+            data: { pharmacies: cityPharmacies },
+          };
+        } else {
+          return {
+            message: `❓ **AUCUNE PHARMACIE TROUVÉE**\n\nAucune pharmacie trouvée pour "${mentionedCity}".\n\nEssayez:\n• Luxembourg-Ville\n• Esch-sur-Alzette\n• Ettelbruck\n• Differdange`,
+            suggestions: [
+              "Luxembourg-Ville pharmacies",
+              "Today's duty pharmacies",
+              "Emergency pharmacy",
+            ],
+          };
+        }
+      } catch (error) {
+        console.error("❌ Error searching pharmacies by city:", error);
+
+        return {
+          message: `❌ Erreur lors de la recherche de pharmacies pour ${mentionedCity}. Essayez "pharmacies de garde today" ou appelez le 112.`,
+          suggestions: [
+            "Today's duty pharmacies",
+            "Emergency contacts",
+            "Try again",
+          ],
+        };
+      }
+    }
+
+    // Default pharmacy response
+    console.log("💊 Providing general pharmacy info");
+
+    return {
+      message: `💊 **SERVICES PHARMACIE:**\n\n🏥 **Pharmacies de garde:** Ouvertes nuit/dimanche/jours fériés\n💊 **Médicaments:** Sur ordonnance et en vente libre\n🩹 **Conseils:** Santé et premiers secours\n💉 **Vaccinations:** Grippe, COVID, voyage\n📋 **Services:** Pression artérielle, tests rapides\n\n**Que recherchez-vous?**`,
+      suggestions: [
+        "Today's duty pharmacies",
+        "Find pharmacy near me",
+        "Emergency pharmacy",
+        "Refresh pharmacy data",
       ],
     };
   }

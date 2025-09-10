@@ -1,4 +1,5 @@
 import { Module, MiddlewareConsumer } from "@nestjs/common";
+import { ScheduleModule } from "@nestjs/schedule";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ConfigModule } from "@nestjs/config";
 import { AppController } from "./app.controller";
@@ -8,7 +9,7 @@ import { ClientsModule } from "./clients/clients.module";
 import { AppointmentsModule } from "./appointments/appointments.module";
 import { AuthModule } from "./auth/auth.module";
 import { SeedModule } from "./database/seed.module";
-import { ChatModule } from "./chat/chat.module"; // Add this
+import { ChatModule } from "./chat/chat.module";
 import { User } from "./users/entities/user.entity";
 import { Client } from "./clients/entities/client.entity";
 import { Appointment } from "./appointments/entities/appointment.entity";
@@ -16,6 +17,7 @@ import { Appointment } from "./appointments/entities/appointment.entity";
 @Module({
   imports: [
     ConfigModule.forRoot(),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: "postgres",
       host: process.env.DB_HOST || "localhost",

@@ -14,4 +14,5 @@ export const AppDataSource = new DataSource({
   migrations: ["dist/database/migrations/*{.ts,.js}"],
   synchronize: process.env.NODE_ENV === "development",
   logging: true,
+  dropSchema: true,
 });

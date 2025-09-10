@@ -111,4 +111,12 @@ export class ClientsService {
       },
     };
   }
+
+  async findAllByDoctor(doctorId: string): Promise<Client[]> {
+    return this.clientRepository.find({
+      where: { doctor: { id: doctorId } },
+      relations: ["appointments"],
+      order: { createdAt: "DESC" },
+    });
+  }
 }

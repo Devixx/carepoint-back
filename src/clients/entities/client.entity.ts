@@ -5,8 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToOne,
 } from "typeorm";
 import { Appointment } from "../../appointments/entities/appointment.entity";
+import { User } from "../../users/entities/user.entity";
 
 @Entity("clients")
 export class Client {
@@ -45,6 +47,9 @@ export class Client {
 
   @OneToMany(() => Appointment, (appointment) => appointment.patient)
   appointments: Appointment[];
+
+  @ManyToOne(() => User, (user) => user.patients)
+  doctor: User;
 
   @CreateDateColumn()
   createdAt: Date;

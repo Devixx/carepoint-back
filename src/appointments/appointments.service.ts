@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Query,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, Between, FindOptionsWhere } from "typeorm";
@@ -10,6 +11,8 @@ import { CreateAppointmentDto } from "./dto/create-appointment.dto";
 import { UpdateAppointmentDto } from "./dto/update-appointment.dto";
 import { User } from "../users/entities/user.entity";
 import { Client } from "../clients/entities/client.entity";
+import { PaginationQueryDto } from "../auth/dto/pagination-query.dto";
+import { AppointmentsFilterDto } from "./dto/appointments-filter.dto";
 
 @Injectable()
 export class AppointmentsService {
@@ -245,5 +248,97 @@ export class AppointmentsService {
       date,
       availableSlots,
     };
+  }
+
+  async getCalendarData(
+    date: string,
+    doctorId: string,
+  ): Promise<Appointment[]> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return this.appointmentRepository.find({
+      where: {
+        doctor: { id: doctorId },
+        startTime: Between(startOfDay, endOfDay),
+      },
+      relations: ["patient"],
+      order: { startTime: "ASC" },
+    });
+  }
+
+  async findAndCountAppointments(q: PaginationQueryDto, doctorId: string) {
+    const { page = 1, limit = 10, sort = "startTime", order = "ASC" } = q;
+    const skip = (page - 1) * limit;
+    const [items, total] = await this.appointmentRepository.findAndCount({
+      order: { startTime: "ASC" },
+      skip,
+      take: limit,
+      where: { doctor: { id: doctorId } },
+      relations: ["patient", "doctor"],
+    });
+    return { items, meta: { total, page, limit } };
+  }
+
+  async listByDoctor(
+    doctorId: string,
+    q: PaginationQueryDto,
+    f: AppointmentsFilterDto,
+  ) {
+    const { page = 1, limit = 10, sort = "startTime", order = "ASC" } = q;
+    const skip = (page - 1) * limit;
+
+    const qb = this.appointmentRepository
+      .createQueryBuilder("appt")
+      .leftJoin("appt.doctor", "doctor")
+      .leftJoinAndSelect("appt.patient", "patient")
+      .where("doctor.id = :doctorId", { doctorId });
+
+    if (f?.start && f?.end) {
+      const start = new Date(f.start);
+      const end = new Date(f.end);
+      qb.andWhere("appt.startTime BETWEEN :start AND :end", { start, end });
+    }
+
+    const sortable = new Set([
+      "startTime",
+      "endTime",
+      "createdAt",
+      "updatedAt",
+      "title",
+      "status",
+    ]);
+    const sortField = sortable.has(sort) ? sort : "startTime";
+
+    const [items, total] = await qb
+      .orderBy(`appt.${sortField}`, order as "ASC" | "DESC")
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    console.log("Items:", items);
+    console.log("Total:", total);
+
+    return { items, meta: { total, page, limit } };
+  }
+
+  async dayByDoctor(doctorId: string, date: string) {
+    const start = new Date(`${date}T00:00:00.000Z`);
+    const end = new Date(`${date}T23:59:59.999Z`);
+
+    return this.appointmentRepository
+      .createQueryBuilder("appt")
+      .leftJoin("appt.doctor", "doctor")
+      .where("doctor.id = :doctorId", { doctorId })
+      .andWhere("appt.startTime BETWEEN :start AND :end", { start, end })
+      .orderBy("appt.startTime", "ASC")
+      .getMany();
+  }
+
+  async findAllByDoctor(doctorId: string, @Query() query: PaginationQueryDto) {
+    return this.findAndCountAppointments(query, doctorId);
   }
 }
