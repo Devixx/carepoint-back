@@ -47,12 +47,6 @@ export class AppointmentsService {
       if (!patient) {
         throw new NotFoundException("Patient not found");
       }
-    } else if (user.type === "doctor") {
-      // Doctor/Admin is booking for a patient (need patientId in DTO)
-      // For now, throw error - implement if needed
-      throw new ForbiddenException(
-        "Doctors cannot book appointments yet - implement patient selection",
-      );
     }
 
     // Create appointment
