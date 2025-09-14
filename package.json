@@ -11,6 +11,7 @@
     "start:dev": "rm -rf tsconfig.build.tsbuildinfo && nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
+    "build:lambda": "nest build && cp package.json dist/ && cd dist && npm install --production",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -50,7 +51,8 @@
     "redis": "^5.8.2",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
-    "typeorm": "^0.3.26"
+    "typeorm": "^0.3.26",
+    "@vendia/serverless-express": "^4.12.6"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.10",
