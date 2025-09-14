@@ -11,6 +11,8 @@ async function bootstrap() {
     origin: [
       "http://localhost:3000", // carepoint-front (doctor interface)
       "http://localhost:3002", // carepoint-patient (patient interface)
+      "https://main.d32cx20r0uj9nu.amplifyapp.com/",
+      "https://main.d27s5cfl90jfmd.amplifyapp.com/",
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
