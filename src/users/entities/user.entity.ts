@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from "typeorm";
+import { Exclude } from "class-transformer";
 import { Appointment } from "../../appointments/entities/appointment.entity";
 import { Client } from "../../clients/entities/client.entity";
 
@@ -29,6 +30,7 @@ export class User {
   @Column({ unique: true })
   email: string;
 
+  @Exclude()
   @Column()
   password: string;
 
@@ -44,6 +46,21 @@ export class User {
 
   @Column({ nullable: true })
   specialty?: string;
+
+  @Column({ type: "text", nullable: true })
+  bio?: string;
+
+  @Column({ type: "text", nullable: true })
+  address?: string;
+
+  @Column({ nullable: true })
+  city?: string;
+
+  @Column({ nullable: true })
+  zipCode?: string;
+
+  @Column({ nullable: true })
+  country?: string;
 
   @Column({ default: true })
   isActive: boolean;
@@ -62,4 +79,23 @@ export class User {
 
   @Column({ type: "json", nullable: true })
   workingHours: Record<string, any>;
+
+  @Column({ type: "json", nullable: true })
+  appointmentSettings: Record<string, any>;
+
+  @Column({ type: "json", nullable: true })
+  socialMedia?: {
+    website?: string;
+    facebook?: string;
+    twitter?: string;
+    linkedin?: string;
+    instagram?: string;
+  };
+
+  @Column({ type: "json", nullable: true })
+  vacations?: Array<{
+    startDate: string;
+    endDate: string;
+    reason?: string;
+  }>;
 }

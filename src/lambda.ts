@@ -1,35 +1,43 @@
-import { NestFactory } from "@nestjs/core";
+import { NestFactory, Reflector } from "@nestjs/core";
+import { ExpressAdapter } from "@nestjs/platform-express";
+import { ClassSerializerInterceptor } from "@nestjs/common";
 import { AppModule } from "./app.module";
+import express from "express";
 import { configure as serverlessExpress } from "@vendia/serverless-express";
-import { INestApplication } from "@nestjs/common";
 
-let cachedServer: any;
+let cachedServer;
 
-async function bootstrap(): Promise<any> {
+export const handler = async (event, context) => {
   if (!cachedServer) {
-    const app: INestApplication = await NestFactory.create(AppModule);
+    const expressApp = express();
+    const nestApp = await NestFactory.create(
+      AppModule,
+      new ExpressAdapter(expressApp),
+    );
 
-    // Enable CORS for your Amplify domains
-    app.enableCors({
-      origin: [
-        /\.amplifyapp\.com$/,
-        "http://localhost:3000",
-        "http://localhost:3002",
+    // Enable class serialization (for @Exclude() decorator)
+    nestApp.useGlobalInterceptors(new ClassSerializerInterceptor(nestApp.get(Reflector)));
+
+    // Enable CORS for Lambda
+    nestApp.enableCors({
+      origin: true,
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+      allowedHeaders: [
+        "Origin",
+        "X-Requested-With",
+        "Content-Type",
+        "Accept",
+        "Authorization",
+        "X-Api-Key",
+        "X-Amz-Date",
+        "X-Amz-Security-Token",
       ],
-      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
       credentials: true,
     });
 
-    await app.init();
-    cachedServer = serverlessExpress({
-      app: app.getHttpAdapter().getInstance(),
-    });
+    await nestApp.init();
+    cachedServer = serverlessExpress({ app: expressApp });
   }
-  return cachedServer;
-}
 
-export const handler = async (event: any, context: any) => {
-  const server = await bootstrap();
-  return server(event, context);
+  return cachedServer(event, context);
 };

@@ -7,6 +7,7 @@ import {
   OneToMany,
   ManyToOne,
 } from "typeorm";
+import { Exclude } from "class-transformer";
 import { Appointment } from "../../appointments/entities/appointment.entity";
 import { User } from "../../users/entities/user.entity";
 
@@ -24,6 +25,7 @@ export class Client {
   @Column({ unique: true })
   email: string;
 
+  @Exclude()
   @Column({ nullable: true })
   password: string;
 

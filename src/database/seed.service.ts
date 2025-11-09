@@ -8,6 +8,7 @@ import {
   Appointment,
   AppointmentStatus,
 } from "../appointments/entities/appointment.entity";
+import { now, addDays, addMinutes } from "../utils/date.utils";
 
 @Injectable()
 export class SeedService {
@@ -84,6 +85,15 @@ export class SeedService {
     const saltRounds = 10;
     const password = await bcrypt.hash("password123", saltRounds);
 
+    // Get current date for relative vacation dates
+    const currentDate = now();
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     const doctorsData = [
       {
         firstName: "Sarah",
@@ -92,6 +102,24 @@ export class SeedService {
         phone: "+352 621 001 001",
         specialty: "Cardiology",
         role: UserRole.DOCTOR,
+        socialMedia: {
+          facebook: "https://www.facebook.com/WHO",
+          twitter: "https://twitter.com/WHO",
+          linkedin: "https://www.linkedin.com/company/world-health-organization",
+          instagram: "https://www.instagram.com/who",
+        },
+        vacations: [
+          {
+            startDate: formatDate(addDays(currentDate, 7)),
+            endDate: formatDate(addDays(currentDate, 14)),
+            reason: "Annual Leave - Summer Vacation",
+          },
+          {
+            startDate: formatDate(addDays(currentDate, 60)),
+            endDate: formatDate(addDays(currentDate, 67)),
+            reason: "Medical Conference in Geneva",
+          },
+        ],
       },
       {
         firstName: "Michael",
@@ -100,6 +128,19 @@ export class SeedService {
         phone: "+352 621 001 002",
         specialty: "Internal Medicine",
         role: UserRole.DOCTOR,
+        socialMedia: {
+          facebook: "https://www.facebook.com/CDC",
+          twitter: "https://twitter.com/CDCgov",
+          linkedin: "https://www.linkedin.com/company/centers-for-disease-control-and-prevention",
+          instagram: "https://www.instagram.com/cdcgov",
+        },
+        vacations: [
+          {
+            startDate: formatDate(addDays(currentDate, 21)),
+            endDate: formatDate(addDays(currentDate, 25)),
+            reason: "Family Holiday",
+          },
+        ],
       },
       {
         firstName: "Emily",
@@ -108,6 +149,19 @@ export class SeedService {
         phone: "+352 621 001 003",
         specialty: "Dermatology",
         role: UserRole.DOCTOR,
+        socialMedia: {
+          facebook: "https://www.facebook.com/drpimplepopper",
+          twitter: "https://twitter.com/drpimplepopper",
+          instagram: "https://www.instagram.com/drpimplepopper",
+          linkedin: "https://www.linkedin.com/in/sandra-lee-dermatology",
+        },
+        vacations: [
+          {
+            startDate: formatDate(addDays(currentDate, 30)),
+            endDate: formatDate(addDays(currentDate, 44)),
+            reason: "Continuing Education Course",
+          },
+        ],
       },
       {
         firstName: "David",
@@ -116,6 +170,19 @@ export class SeedService {
         phone: "+352 621 001 004",
         specialty: "Orthopedics",
         role: UserRole.DOCTOR,
+        socialMedia: {
+          facebook: "https://www.facebook.com/mayoclinic",
+          twitter: "https://twitter.com/MayoClinic",
+          linkedin: "https://www.linkedin.com/company/mayo-clinic",
+          instagram: "https://www.instagram.com/mayoclinic",
+        },
+        vacations: [
+          {
+            startDate: formatDate(addDays(currentDate, 45)),
+            endDate: formatDate(addDays(currentDate, 52)),
+            reason: "Winter Break",
+          },
+        ],
       },
       {
         firstName: "Lisa",
@@ -124,6 +191,24 @@ export class SeedService {
         phone: "+352 621 001 005",
         specialty: "Pediatrics",
         role: UserRole.DOCTOR,
+        socialMedia: {
+          facebook: "https://www.facebook.com/drmikevarshavski",
+          twitter: "https://twitter.com/RealDoctorMike",
+          instagram: "https://www.instagram.com/doctor.mike",
+          linkedin: "https://www.linkedin.com/in/mikhail-varshavski",
+        },
+        vacations: [
+          {
+            startDate: formatDate(addDays(currentDate, 14)),
+            endDate: formatDate(addDays(currentDate, 21)),
+            reason: "Pediatrics Symposium in Brussels",
+          },
+          {
+            startDate: formatDate(addDays(currentDate, 75)),
+            endDate: formatDate(addDays(currentDate, 82)),
+            reason: "Personal Leave",
+          },
+        ],
       },
       {
         firstName: "Robert",
@@ -132,6 +217,13 @@ export class SeedService {
         phone: "+352 621 001 006",
         specialty: "Neurology",
         role: UserRole.DOCTOR,
+        socialMedia: {
+          facebook: "https://www.facebook.com/clevelandclinic",
+          twitter: "https://twitter.com/ClevelandClinic",
+          linkedin: "https://www.linkedin.com/company/cleveland-clinic",
+          instagram: "https://www.instagram.com/clevelandclinic",
+        },
+        vacations: [],
       },
       {
         firstName: "Amanda",
@@ -140,6 +232,19 @@ export class SeedService {
         phone: "+352 621 001 007",
         specialty: "Psychiatry",
         role: UserRole.DOCTOR,
+        socialMedia: {
+          facebook: "https://www.facebook.com/johnshopkinsmedicine",
+          twitter: "https://twitter.com/HopkinsMedicine",
+          linkedin: "https://www.linkedin.com/company/johns-hopkins-medicine",
+          instagram: "https://www.instagram.com/johnshopkinsmedicine",
+        },
+        vacations: [
+          {
+            startDate: formatDate(addDays(currentDate, 10)),
+            endDate: formatDate(addDays(currentDate, 12)),
+            reason: "Mental Health Conference",
+          },
+        ],
       },
     ];
 
@@ -312,7 +417,7 @@ export class SeedService {
     ];
 
     const appointments = [];
-    const now = new Date();
+    const currentDate = now();
 
     // Create appointments for the past month and next 3 months
     for (let i = 0; i < 50; i++) {
@@ -321,8 +426,7 @@ export class SeedService {
 
       // Generate random date within -30 to +90 days
       const randomDays = Math.floor(Math.random() * 120) - 30;
-      const appointmentDate = new Date(now);
-      appointmentDate.setDate(appointmentDate.getDate() + randomDays);
+      let appointmentDate = addDays(currentDate, randomDays);
 
       // Set random time during business hours (9 AM to 5 PM)
       const hour = Math.floor(Math.random() * 8) + 9; // 9-16 (9 AM to 4 PM)
@@ -334,12 +438,32 @@ export class SeedService {
       const durations = [20, 30, 45, 60];
       const duration = durations[Math.floor(Math.random() * durations.length)];
 
+      // Ensure startTime and endTime are always valid Date objects
       const startTime = new Date(appointmentDate);
-      const endTime = new Date(startTime.getTime() + duration * 60000);
+      if (isNaN(startTime.getTime())) {
+        console.warn(`⚠️ Invalid startTime generated, using current date + ${randomDays} days`);
+        startTime.setTime(currentDate.getTime() + randomDays * 24 * 60 * 60 * 1000);
+        startTime.setHours(hour, minute, 0, 0);
+      }
+
+      const endTime = addMinutes(startTime, duration);
+      if (isNaN(endTime.getTime())) {
+        console.warn(`⚠️ Invalid endTime generated, using startTime + ${duration} minutes`);
+        endTime.setTime(startTime.getTime() + duration * 60000);
+      }
+
+      // Validate dates before creating appointment
+      if (!startTime || !endTime || isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+        console.error(`❌ Skipping appointment ${i + 1}: Invalid dates`, {
+          startTime,
+          endTime,
+        });
+        continue;
+      }
 
       // Determine status based on date
       let status: AppointmentStatus;
-      if (appointmentDate < now) {
+      if (appointmentDate < currentDate) {
         // Past appointments - mostly completed
         const pastStatuses = [
           AppointmentStatus.COMPLETED,
@@ -359,27 +483,48 @@ export class SeedService {
           futureStatuses[Math.floor(Math.random() * futureStatuses.length)];
       }
 
-      const appointment = this.appointmentRepository.create({
-        doctor,
-        patient,
-        startTime,
-        endTime,
-        status,
-        type: appointmentTypes[
-          Math.floor(Math.random() * appointmentTypes.length)
-        ],
-        title:
-          appointmentTitles[
-            Math.floor(Math.random() * appointmentTitles.length)
+      try {
+        const appointment = this.appointmentRepository.create({
+          doctor,
+          patient,
+          startTime,
+          endTime,
+          status,
+          type: appointmentTypes[
+            Math.floor(Math.random() * appointmentTypes.length)
           ],
-        description: `${appointmentTypes[Math.floor(Math.random() * appointmentTypes.length)]} with Dr. ${doctor.firstName} ${doctor.lastName}`,
-        notes: Math.random() > 0.7 ? "Please arrive 15 minutes early" : null,
-        fee: Math.round((Math.random() * 200 + 50) * 100) / 100, // $50-$250
-      });
+          title:
+            appointmentTitles[
+              Math.floor(Math.random() * appointmentTitles.length)
+            ],
+          description: `${appointmentTypes[Math.floor(Math.random() * appointmentTypes.length)]} with Dr. ${doctor.firstName} ${doctor.lastName}`,
+          notes: Math.random() > 0.7 ? "Please arrive 15 minutes early" : null,
+          fee: Math.round((Math.random() * 200 + 50) * 100) / 100, // $50-$250
+        });
 
-      const savedAppointment =
-        await this.appointmentRepository.save(appointment);
-      appointments.push(savedAppointment);
+        // Double-check that dates are valid before saving
+        if (!appointment.startTime || !appointment.endTime) {
+          console.error(`❌ Skipping appointment ${i + 1}: Missing dates in created object`);
+          continue;
+        }
+
+        const savedAppointment =
+          await this.appointmentRepository.save(appointment);
+        
+        // Verify saved appointment has valid dates
+        if (!savedAppointment.startTime || !savedAppointment.endTime) {
+          console.error(`❌ Warning: Saved appointment ${savedAppointment.id} has NULL dates`);
+          // Delete the invalid appointment
+          await this.appointmentRepository.remove(savedAppointment);
+          continue;
+        }
+
+        appointments.push(savedAppointment);
+      } catch (error) {
+        console.error(`❌ Error creating appointment ${i + 1}:`, error);
+        // Continue with next appointment instead of failing entire seed
+        continue;
+      }
     }
 
     console.log(`✅ Created ${appointments.length} appointments`);

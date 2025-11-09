@@ -1,6 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
 import axios from "axios";
 import * as cheerio from "cheerio";
+import {
+  now,
+  nowISO,
+  todayString,
+  toLocaleDateString,
+  formatDate,
+} from "../utils/date.utils";
 
 interface PharmacyDuty {
   name: string;
@@ -42,7 +49,7 @@ export class PharmacyService {
       const realTimeData = await this.fetchRealTimePharmacies();
       if (realTimeData) {
         this.cachedData = realTimeData;
-        this.lastFetchTime = new Date();
+        this.lastFetchTime = now();
         this.logger.log("Successfully fetched real-time pharmacy data");
         return realTimeData;
       }
@@ -59,7 +66,7 @@ export class PharmacyService {
 
     // Cache the fallback data too, but with shorter duration
     this.cachedData = fallbackData;
-    this.lastFetchTime = new Date();
+    this.lastFetchTime = now();
 
     return fallbackData;
   }
@@ -144,11 +151,11 @@ export class PharmacyService {
 
       if (pharmacies.length > 0) {
         return {
-          date: new Date().toLocaleDateString("fr-LU"),
+          date: toLocaleDateString(now(), "fr-LU"),
           pharmacies: pharmacies,
           emergencyInfo: "Données officielles du Ministère de la Santé",
           source: "real-time",
-          lastUpdated: new Date(),
+          lastUpdated: now(),
         };
       }
 
@@ -210,7 +217,7 @@ export class PharmacyService {
         {
           timeout: 10000,
           params: {
-            date: new Date().toISOString().split("T")[0],
+            date: todayString(),
             format: "json",
           },
         },
@@ -218,7 +225,7 @@ export class PharmacyService {
 
       if (response.data && response.data.pharmacies) {
         return {
-          date: new Date().toLocaleDateString("fr-LU"),
+          date: toLocaleDateString(now(), "fr-LU"),
           pharmacies: response.data.pharmacies.map((p: any) => ({
             name: p.name || p.nom,
             address: p.address || p.adresse,
@@ -230,7 +237,7 @@ export class PharmacyService {
           })),
           emergencyInfo: "Données officielles API Luxembourg",
           source: "real-time",
-          lastUpdated: new Date(),
+          lastUpdated: now(),
         };
       }
 
@@ -334,14 +341,14 @@ export class PharmacyService {
 
   // Fallback method with realistic data
   private getFallbackPharmacies(): PharmacyResponse {
-    const today = new Date();
+    const today = now();
     const dayOfWeek = today.getDay();
 
     // Create realistic fallback based on typical Luxembourg pharmacy rotation
     const fallbackPharmacies = this.getRotatingPharmacies();
 
     return {
-      date: today.toLocaleDateString("fr-LU", {
+      date: toLocaleDateString(today, "fr-LU", {
         weekday: "long",
         year: "numeric",
         month: "long",
@@ -350,12 +357,12 @@ export class PharmacyService {
       pharmacies: fallbackPharmacies,
       emergencyInfo: "Données de secours - Appelez le 112 pour confirmation",
       source: "fallback",
-      lastUpdated: new Date(),
+      lastUpdated: now(),
     };
   }
 
   private getRotatingPharmacies(): PharmacyDuty[] {
-    const dayOfWeek = new Date().getDay();
+    const dayOfWeek = now().getDay();
 
     const allPharmacies: PharmacyDuty[] = [
       {

@@ -5,6 +5,7 @@ import { User } from "../users/entities/user.entity";
 import { Client } from "../clients/entities/client.entity";
 import { Appointment } from "../appointments/entities/appointment.entity";
 import { PharmacyService } from "../pharmacy/pharmacy.service";
+import { now, toLocaleDateString, toLocaleTimeString } from "../utils/date.utils";
 
 interface ChatResponse {
   message: string;
@@ -264,18 +265,18 @@ export class ChatService {
       const nextAppointment = await this.appointmentRepository.findOne({
         where: {
           patient: { id: patientId },
-          startTime: new Date(), // This should be MoreThan(new Date()) but simplified for demo
+          startTime: now(), // This should be MoreThan(now()) but simplified for demo
         },
         relations: ["doctor"],
         order: { startTime: "ASC" },
       });
 
       if (nextAppointment) {
-        const date = new Date(nextAppointment.startTime).toLocaleDateString();
-        const time = new Date(nextAppointment.startTime).toLocaleTimeString(
-          [],
-          { hour: "2-digit", minute: "2-digit" },
-        );
+        const date = toLocaleDateString(nextAppointment.startTime);
+        const time = toLocaleTimeString(nextAppointment.startTime, "en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
 
         return {
           message: `Your next appointment is:\n📅 ${date} at ${time}\n👩‍⚕️ Dr. ${nextAppointment.doctor.firstName} ${nextAppointment.doctor.lastName}\n📋 ${nextAppointment.title}`,

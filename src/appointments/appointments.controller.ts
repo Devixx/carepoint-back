@@ -33,7 +33,9 @@ export class AppointmentsController {
 
   @Get("calendar/:date")
   getCalendarData(@Param("date") date: string, @Request() req) {
-    return this.appointmentsService.getCalendarData(date, req.user.id);
+    const doctorId = req.user?.id || req.user?.userId || process.env.DEV_DOCTOR_ID;
+    console.log(`📅 Calendar request for date: ${date}, doctorId: ${doctorId}`);
+    return this.appointmentsService.getCalendarData(date, doctorId);
   }
 
   @Get(":id")
@@ -68,11 +70,5 @@ export class AppointmentsController {
       },
       { start: query.start, end: query.end },
     );
-  }
-
-  @Get("calendar/:date")
-  async day(@Request() req, @Param("date") date: string) {
-    const doctorId = req.user?.id || process.env.DEV_DOCTOR_ID;
-    return this.appointmentsService.dayByDoctor(doctorId, date);
   }
 }

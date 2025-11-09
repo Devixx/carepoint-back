@@ -1,8 +1,18 @@
-import { IsString, IsDateString, IsOptional, IsUUID } from "class-validator";
+import {
+  IsString,
+  IsDateString,
+  IsOptional,
+  IsUUID,
+  IsNumber,
+} from "class-validator";
 
 export class CreateAppointmentDto {
   @IsUUID()
   doctorUserId: string; // Add this field
+
+  @IsOptional()
+  @IsUUID()
+  patientId?: string;
 
   @IsDateString()
   startTime: string;
@@ -23,4 +33,8 @@ export class CreateAppointmentDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsNumber()
+  fee?: number;
 }

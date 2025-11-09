@@ -1,5 +1,6 @@
 import { Controller, Get } from "@nestjs/common";
 import { AppService } from "./app.service";
+import { nowISO } from "./utils/date.utils";
 
 @Controller()
 export class AppController {
@@ -15,7 +16,7 @@ export class AppController {
     return {
       status: "ok",
       message: "CarePoint Backend is running!",
-      timestamp: new Date().toISOString(),
+      timestamp: nowISO(),
     };
   }
 }
