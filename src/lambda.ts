@@ -20,7 +20,13 @@ export const handler = async (event, context) => {
 
     // Enable CORS for Lambda
     nestApp.enableCors({
-      origin: true,
+      origin: [
+        "http://localhost:3000", // carepoint-front (doctor interface)
+        "http://localhost:3002", // carepoint-patient (patient interface)
+        /\.amplifyapp\.com$/,
+        /\.ngrok\.io$/,          // Add this for ngrok
+        /\.ngrok-free\.app$/,    // Add this for newer ngrok free tier
+      ],
       methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
       allowedHeaders: [
         "Origin",
