@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { User } from "./entities/user.entity";
+import { User, UserRole } from "./entities/user.entity";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { DoctorSettingsDto } from "./dto/doctor-settings.dto";
@@ -32,6 +32,11 @@ export class UsersService {
         "createdAt",
         "socialMedia",
         "vacations",
+        "address",
+        "city",
+        "country",
+        "latitude",
+        "longitude",
       ],
     });
   }
@@ -56,6 +61,8 @@ export class UsersService {
         "city",
         "zipCode",
         "country",
+        "latitude",
+        "longitude",
         "vacations",
       ],
     });
@@ -256,5 +263,132 @@ export class UsersService {
 
     // Return updated settings
     return this.getDoctorSettings(doctorId);
+  }
+
+  /**
+   * Haversine formula to calculate distance between two GPS coordinates in km
+   */
+  private haversineDistance(
+    lat1: number, lng1: number,
+    lat2: number, lng2: number,
+  ): number {
+    const R = 6371; // Earth's radius in km
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  /**
+   * Find doctors near a given location, sorted by distance
+   */
+  async findDoctorsNearby(
+    lat: number,
+    lng: number,
+    radiusKm: number = 50,
+    filters?: { specialty?: string; search?: string },
+  ) {
+    let doctors = await this.findAll();
+    doctors = doctors.filter((d) => d.role === UserRole.DOCTOR);
+
+    if (filters?.specialty) {
+      doctors = doctors.filter((d) =>
+        d.specialty?.toLowerCase().includes(filters.specialty!.toLowerCase()),
+      );
+    }
+    if (filters?.search) {
+      const q = filters.search.toLowerCase();
+      doctors = doctors.filter(
+        (d) =>
+          d.firstName.toLowerCase().includes(q) ||
+          d.lastName.toLowerCase().includes(q) ||
+          d.specialty?.toLowerCase().includes(q),
+      );
+    }
+
+    // Calculate distance and filter by radius
+    const doctorsWithDistance = doctors
+      .filter((d) => d.latitude != null && d.longitude != null)
+      .map((d) => {
+        const distance = this.haversineDistance(lat, lng, d.latitude!, d.longitude!);
+        return { ...d, distance: Math.round(distance * 10) / 10 };
+      })
+      .filter((d) => d.distance <= radiusKm)
+      .sort((a, b) => a.distance - b.distance);
+
+    // Also include doctors without coordinates at the end
+    const doctorsWithoutLocation = doctors
+      .filter((d) => d.latitude == null || d.longitude == null)
+      .map((d) => ({ ...d, distance: null }));
+
+    return [...doctorsWithDistance, ...doctorsWithoutLocation];
+  }
+  /**
+   * Find doctors in a specific city, with distance from city center
+   */
+  async findDoctorsByCity(
+    city: string,
+    filters?: { specialty?: string; search?: string },
+  ) {
+    let doctors = await this.findAll();
+    doctors = doctors.filter((d) => d.role === UserRole.DOCTOR);
+
+    if (filters?.specialty) {
+      doctors = doctors.filter((d) =>
+        d.specialty?.toLowerCase().includes(filters.specialty!.toLowerCase()),
+      );
+    }
+    if (filters?.search) {
+      const q = filters.search.toLowerCase();
+      doctors = doctors.filter(
+        (d) =>
+          d.firstName.toLowerCase().includes(q) ||
+          d.lastName.toLowerCase().includes(q) ||
+          d.specialty?.toLowerCase().includes(q),
+      );
+    }
+
+    // Strictly filter to only doctors in the selected city
+    const cityLower = city.toLowerCase();
+    const cityDoctors = doctors.filter((d) =>
+      d.city?.toLowerCase().includes(cityLower),
+    );
+
+    // Known city centers for distance calculation
+    const cityCenters: Record<string, { lat: number; lng: number }> = {
+      'luxembourg city': { lat: 49.6116, lng: 6.1319 },
+      'esch-sur-alzette': { lat: 49.4958, lng: 5.9806 },
+      'differdange': { lat: 49.5244, lng: 5.8910 },
+      'ettelbruck': { lat: 49.8472, lng: 6.1042 },
+      'strassen': { lat: 49.6205, lng: 6.0749 },
+      'kirchberg': { lat: 49.6319, lng: 6.1750 },
+      'dudelange': { lat: 49.4803, lng: 6.0874 },
+      'pétange': { lat: 49.5581, lng: 5.8819 },
+    };
+
+    const center = cityCenters[cityLower];
+
+    // Add distance from city center if coordinates are available
+    if (center) {
+      return cityDoctors.map((d) => {
+        if (d.latitude != null && d.longitude != null) {
+          const distance = this.haversineDistance(center.lat, center.lng, d.latitude, d.longitude);
+          return { ...d, distance: Math.round(distance * 10) / 10 };
+        }
+        return { ...d, distance: null };
+      }).sort((a, b) => {
+        if (a.distance == null) return 1;
+        if (b.distance == null) return -1;
+        return (a.distance as number) - (b.distance as number);
+      });
+    }
+
+    return cityDoctors;
   }
 }

@@ -438,7 +438,7 @@ export class AppointmentsService {
     }
 
     const busySlots = new Set(
-      appointments.map((apt) => getTimeString(apt.startTime, false)), // Use local time, not UTC
+      appointments.map((apt) => getTimeString(apt.startTime, true)), // Use UTC to match slot generation
     );
 
     console.log("Booked slots:", Array.from(busySlots));

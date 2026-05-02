@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Query } from "@nestjs/common";
-import { UsersService } from "./users.service"; // Correct path
+import { UsersService } from "./users.service";
 import { AppointmentsService } from "../appointments/appointments.service";
-import { UserRole } from "./entities/user.entity"; // Correct path
+import { UserRole } from "./entities/user.entity";
 
 @Controller("doctors")
 export class DoctorsController {
@@ -14,7 +14,30 @@ export class DoctorsController {
   async findAllDoctors(
     @Query("specialty") specialty?: string,
     @Query("search") search?: string,
+    @Query("lat") lat?: string,
+    @Query("lng") lng?: string,
+    @Query("radius") radius?: string,
+    @Query("city") city?: string,
   ) {
+    const filters = { specialty, search };
+
+    // Location-based search (geolocation)
+    if (lat && lng) {
+      const latNum = parseFloat(lat);
+      const lngNum = parseFloat(lng);
+      const radiusKm = radius ? parseFloat(radius) : 50;
+
+      if (!isNaN(latNum) && !isNaN(lngNum)) {
+        return this.usersService.findDoctorsNearby(latNum, lngNum, radiusKm, filters);
+      }
+    }
+
+    // City-based search
+    if (city) {
+      return this.usersService.findDoctorsByCity(city, filters);
+    }
+
+    // Default: return all doctors
     const users = await this.usersService.findAll();
 
     // Filter for doctors only
