@@ -1,7 +1,7 @@
 FROM node:20-alpine AS builder
 
 # Install pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm@8
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Install pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm@8
 
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-lock.yaml ./
