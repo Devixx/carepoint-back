@@ -51,12 +51,30 @@ jobs:
           key: ${{ secrets.GCP_SSH_KEY }}
           timeout: 60s
           command_timeout: 20m
+          envs: GHCR_USER,GHCR_TOKEN,DOMAIN_NAME,LETSENCRYPT_EMAIL,DUCKDNS_TOKEN
           script: |
+            set -euo pipefail
+
             PROJECT_DIR="/home/ubuntu/carepoint"
             mkdir -p $PROJECT_DIR
             cd $PROJECT_DIR
 
-            # Write docker-compose.yaml
+            # ---------------------------------------------------------------
+            # Best-effort: ensure GCP firewall allows HTTP/HTTPS.
+            # Requires the VM's service account to have compute.firewalls.create.
+            # If it doesn't, this silently no-ops and you must run setup-firewall.sh
+            # locally with gcloud (see gcp-ready-config/setup-firewall.sh).
+            # ---------------------------------------------------------------
+            if command -v gcloud >/dev/null 2>&1; then
+              gcloud compute firewall-rules create carepoint-allow-http \
+                --allow=tcp:80 --source-ranges=0.0.0.0/0 \
+                --description="Allow HTTP for CarePoint" --quiet 2>/dev/null || true
+              gcloud compute firewall-rules create carepoint-allow-https \
+                --allow=tcp:443 --source-ranges=0.0.0.0/0 \
+                --description="Allow HTTPS for CarePoint" --quiet 2>/dev/null || true
+            fi
+
+            # Write docker-compose.yaml (canonical version owned by backend deploy)
             cat > docker-compose.yaml << 'COMPOSE_EOF'
             services:
               db:
@@ -148,7 +166,7 @@ jobs:
               caddy_config:
             COMPOSE_EOF
 
-            # Write Caddyfile
+            # Write Caddyfile (patient now correctly on 3002)
             cat > Caddyfile << 'CADDY_EOF'
             {
                 email {$LETSENCRYPT_EMAIL}
@@ -172,20 +190,26 @@ jobs:
             }
             CADDY_EOF
 
-            # Update DuckDNS
-            curl -s "https://www.duckdns.org/update?domains=carepoint&token=${{ secrets.DUCKDNS_TOKEN }}&ip="
+            # Update DuckDNS with this VM's external IP
+            EXTERNAL_IP=$(curl -s -H "Metadata-Flavor: Google" \
+              http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip \
+              || curl -s ifconfig.me)
+            curl -s "https://www.duckdns.org/update?domains=carepoint&token=${{ secrets.DUCKDNS_TOKEN }}&ip=${EXTERNAL_IP}"
 
             # Create/Update .env file
-            echo "DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}" > .env
-            echo "LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}" >> .env
-            echo "POSTGRES_USER=postgres" >> .env
-            echo "POSTGRES_PASSWORD=password123" >> .env
-            echo "POSTGRES_DB=carepoint_db" >> .env
-            echo "JWT_SECRET=carepoint-secret-123" >> .env
+            cat > .env << ENV_EOF
+            DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
+            LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}
+            POSTGRES_USER=postgres
+            POSTGRES_PASSWORD=password123
+            POSTGRES_DB=carepoint_db
+            JWT_SECRET=carepoint-secret-123
+            ENV_EOF
 
             # Login to GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Pull and restart
+            # Pull and start. No --force-recreate: compose only restarts services
+            # whose image digest actually changed (so DB stays up across deploys).
             sudo docker compose pull
-            sudo docker compose up -d --force-recreate --remove-orphans
+            sudo docker compose up -d --remove-orphans
