@@ -175,13 +175,17 @@ jobs:
             # Update DuckDNS
             curl -s "https://www.duckdns.org/update?domains=carepoint&token=${{ secrets.DUCKDNS_TOKEN }}&ip="
 
+            # Create/Update .env file
+            echo "DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}" > .env
+            echo "LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}" >> .env
+            echo "POSTGRES_USER=postgres" >> .env
+            echo "POSTGRES_PASSWORD=password123" >> .env
+            echo "POSTGRES_DB=carepoint_db" >> .env
+            echo "JWT_SECRET=carepoint-secret-123" >> .env
+
             # Login to GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Export env vars
-            export DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
-            export LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}
-
             # Pull and restart
             sudo docker compose pull
-            sudo docker compose up -d db backend caddy
+            sudo docker compose up -d
