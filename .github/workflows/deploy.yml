@@ -53,17 +53,133 @@ jobs:
             PROJECT_DIR="/home/ubuntu/carepoint"
             mkdir -p $PROJECT_DIR
             cd $PROJECT_DIR
-            
+
+            # Write docker-compose.yaml
+            cat > docker-compose.yaml << 'COMPOSE_EOF'
+            services:
+              db:
+                image: postgres:15-alpine
+                container_name: carepoint-db
+                restart: always
+                environment:
+                  POSTGRES_USER: ${POSTGRES_USER:-postgres}
+                  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password123}
+                  POSTGRES_DB: ${POSTGRES_DB:-carepoint_db}
+                volumes:
+                  - db_data:/var/lib/postgresql/data
+                healthcheck:
+                  test: ["CMD-SHELL", "pg_isready -U postgres"]
+                  interval: 10s
+                  timeout: 5s
+                  retries: 5
+                logging:
+                  driver: "json-file"
+                  options: { max-size: "10m", max-file: "3" }
+
+              backend:
+                image: ghcr.io/devixx/carepoint-back:latest
+                container_name: carepoint-api
+                restart: always
+                environment:
+                  DATABASE_HOST: db
+                  DATABASE_PORT: 5432
+                  DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
+                  DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-password123}
+                  DATABASE_NAME: ${POSTGRES_DB:-carepoint_db}
+                  PORT: 3001
+                  NODE_ENV: production
+                  JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+                depends_on:
+                  db:
+                    condition: service_healthy
+                logging:
+                  driver: "json-file"
+                  options: { max-size: "10m", max-file: "3" }
+
+              doctor-portal:
+                image: ghcr.io/devixx/carepoint-front:latest
+                container_name: carepoint-doctor
+                restart: always
+                environment:
+                  NEXT_PUBLIC_API_URL: https://${DOMAIN_NAME}/api
+                  NODE_ENV: production
+                logging:
+                  driver: "json-file"
+                  options: { max-size: "10m", max-file: "3" }
+
+              patient-portal:
+                image: ghcr.io/devixx/carepoint-patient:latest
+                container_name: carepoint-patient
+                restart: always
+                environment:
+                  NEXT_PUBLIC_API_URL: https://${DOMAIN_NAME}/api
+                  NODE_ENV: production
+                logging:
+                  driver: "json-file"
+                  options: { max-size: "10m", max-file: "3" }
+
+              caddy:
+                image: caddy:alpine
+                container_name: carepoint-caddy
+                restart: always
+                ports:
+                  - "80:80"
+                  - "443:443"
+                environment:
+                  DOMAIN_NAME: ${DOMAIN_NAME}
+                  LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+                volumes:
+                  - ./Caddyfile:/etc/caddy/Caddyfile
+                  - caddy_data:/data
+                  - caddy_config:/config
+                depends_on:
+                  - doctor-portal
+                  - patient-portal
+                  - backend
+                logging:
+                  driver: "json-file"
+                  options: { max-size: "10m", max-file: "3" }
+
+            volumes:
+              db_data:
+              caddy_data:
+              caddy_config:
+            COMPOSE_EOF
+
+            # Write Caddyfile
+            cat > Caddyfile << 'CADDY_EOF'
+            {
+                email {$LETSENCRYPT_EMAIL}
+            }
+
+            {$DOMAIN_NAME} {
+                handle /api/* {
+                    uri strip_prefix /api
+                    reverse_proxy backend:3001
+                }
+                handle /doctor/* {
+                    reverse_proxy doctor-portal:3000
+                }
+                handle /patient/* {
+                    reverse_proxy patient-portal:3002
+                }
+                handle / {
+                    redir /patient
+                }
+                encode gzip
+            }
+            CADDY_EOF
+
             # Update DuckDNS
             curl -s "https://www.duckdns.org/update?domains=carepoint&token=${{ secrets.DUCKDNS_TOKEN }}&ip="
-            
+
             # Login to GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
+
             # Export env vars
             export DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
             export LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}
-            
+
             # Pull and restart
             docker compose pull backend
-            docker compose up -d backend caddy
+            docker compose up -d db backend caddy
