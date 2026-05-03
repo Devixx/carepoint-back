@@ -1,0 +1,69 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: devixx/carepoint-back
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute Remote Deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.GCP_IP }}
+          username: ubuntu
+          key: ${{ secrets.GCP_SSH_KEY }}
+          script: |
+            PROJECT_DIR="/home/ubuntu/carepoint"
+            mkdir -p $PROJECT_DIR
+            cd $PROJECT_DIR
+            
+            # Update DuckDNS
+            curl -s "https://www.duckdns.org/update?domains=carepoint&token=${{ secrets.DUCKDNS_TOKEN }}&ip="
+            
+            # Login to GHCR
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Export env vars
+            export DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
+            export LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}
+            
+            # Pull and restart
+            docker compose pull backend
+            docker compose up -d backend caddy
