@@ -174,12 +174,12 @@ jobs:
             curl -s "https://www.duckdns.org/update?domains=carepoint&token=${{ secrets.DUCKDNS_TOKEN }}&ip="
 
             # Login to GHCR
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             # Export env vars
             export DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
             export LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}
 
             # Pull and restart
-            docker compose pull backend
-            docker compose up -d db backend caddy
+            sudo docker compose pull backend
+            sudo docker compose up -d db backend caddy
