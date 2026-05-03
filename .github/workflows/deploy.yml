@@ -49,6 +49,8 @@ jobs:
           host: ${{ secrets.GCP_IP }}
           username: ubuntu
           key: ${{ secrets.GCP_SSH_KEY }}
+          timeout: 60s
+          command_timeout: 20m
           script: |
             PROJECT_DIR="/home/ubuntu/carepoint"
             mkdir -p $PROJECT_DIR
@@ -181,5 +183,5 @@ jobs:
             export LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}
 
             # Pull and restart
-            sudo docker compose pull backend
+            sudo docker compose pull
             sudo docker compose up -d db backend caddy
