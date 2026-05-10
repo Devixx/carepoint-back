@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsOptional } from "class-validator";
+import { IsString, IsEmail, IsOptional, IsBoolean, IsNumber, IsArray } from "class-validator";
 
 export class DoctorProfileDto {
   @IsOptional()
@@ -60,5 +60,30 @@ export class DoctorProfileDto {
   @IsOptional()
   @IsString()
   instagram?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  acceptsCNS?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  acceptsVideo?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  languages?: string[];
+
+  @IsOptional()
+  @IsString()
+  workingHoursDisplay?: string;
+
+  @IsOptional()
+  @IsNumber()
+  rating?: number;
+
+  @IsOptional()
+  @IsNumber()
+  reviewCount?: number;
 }
 

@@ -16,6 +16,16 @@ export class SystemController {
     }
   }
 
+  @Get("health")
+  async health() {
+    try {
+      await this.ds.query("SELECT 1");
+      return { status: "ok" };
+    } catch {
+      return { status: "degraded" };
+    }
+  }
+
   @Get("info")
   info() {
     return {

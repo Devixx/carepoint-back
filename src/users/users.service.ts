@@ -120,6 +120,12 @@ export class UsersService {
       city,
       zipCode,
       country,
+      acceptsCNS,
+      acceptsVideo,
+      languages,
+      workingHoursDisplay,
+      rating,
+      reviewCount,
       workingHours: userWorkingHours,
       appointmentSettings: userAppointmentSettings,
       vacations,
@@ -183,6 +189,12 @@ export class UsersService {
         city,
         zipCode,
         country,
+        acceptsCNS,
+        acceptsVideo,
+        languages,
+        workingHoursDisplay,
+        rating,
+        reviewCount,
         website: socialMedia?.website,
         linkedin: socialMedia?.linkedin,
         twitter: socialMedia?.twitter,
@@ -235,6 +247,19 @@ export class UsersService {
       }
       if (settingsDto.profile.country !== undefined) {
         user.country = settingsDto.profile.country;
+      }
+
+      if (settingsDto.profile.acceptsCNS !== undefined) {
+        user.acceptsCNS = settingsDto.profile.acceptsCNS;
+      }
+      if (settingsDto.profile.acceptsVideo !== undefined) {
+        user.acceptsVideo = settingsDto.profile.acceptsVideo;
+      }
+      if (settingsDto.profile.languages !== undefined) {
+        user.languages = settingsDto.profile.languages;
+      }
+      if (settingsDto.profile.workingHoursDisplay !== undefined) {
+        user.workingHoursDisplay = settingsDto.profile.workingHoursDisplay;
       }
 
       // Update social media fields
