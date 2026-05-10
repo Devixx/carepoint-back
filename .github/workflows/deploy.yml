@@ -101,11 +101,11 @@ jobs:
                 container_name: carepoint-api
                 restart: always
                 environment:
-                  DATABASE_HOST: db
-                  DATABASE_PORT: 5432
-                  DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
-                  DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-password123}
-                  DATABASE_NAME: ${POSTGRES_DB:-carepoint_db}
+                  DB_HOST: db
+                  DB_PORT: 5432
+                  DB_USERNAME: ${POSTGRES_USER:-postgres}
+                  DB_PASSWORD: ${POSTGRES_PASSWORD:-password123}
+                  DB_NAME: ${POSTGRES_DB:-carepoint_db}
                   PORT: 3001
                   NODE_ENV: production
                   JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
