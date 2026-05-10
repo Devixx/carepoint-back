@@ -71,6 +71,24 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ default: false })
+  acceptsCNS: boolean;
+
+  @Column({ default: false })
+  acceptsVideo: boolean;
+
+  @Column({ type: 'float', nullable: true })
+  rating?: number;
+
+  @Column({ type: 'int', nullable: true })
+  reviewCount?: number;
+
+  @Column({ type: 'json', nullable: true })
+  languages?: string[];
+
+  @Column({ nullable: true })
+  workingHoursDisplay?: string;
+
   @OneToMany(() => Appointment, (appointment) => appointment.doctor)
   doctorAppointments: Appointment[];
 

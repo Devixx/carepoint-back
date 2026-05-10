@@ -112,6 +112,32 @@ jobs:
                 depends_on:
                   db:
                     condition: service_healthy
+                healthcheck:
+                  test: ["CMD-SHELL", "wget -qO- http://localhost:3001/ready || exit 1"]
+                  interval: 15s
+                  timeout: 5s
+                  retries: 6
+                  start_period: 30s
+                logging:
+                  driver: "json-file"
+                  options: { max-size: "10m", max-file: "3" }
+
+              seeder:
+                image: ghcr.io/devixx/carepoint-back:latest
+                container_name: carepoint-seeder
+                restart: "no"
+                command: node dist/database/seed.js
+                environment:
+                  DB_HOST: db
+                  DB_PORT: 5432
+                  DB_USERNAME: ${POSTGRES_USER:-postgres}
+                  DB_PASSWORD: ${POSTGRES_PASSWORD:-password123}
+                  DB_NAME: ${POSTGRES_DB:-carepoint_db}
+                  NODE_ENV: production
+                  JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+                depends_on:
+                  backend:
+                    condition: service_healthy
                 logging:
                   driver: "json-file"
                   options: { max-size: "10m", max-file: "3" }
