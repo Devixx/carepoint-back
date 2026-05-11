@@ -10,9 +10,11 @@ import { AppointmentsModule } from "./appointments/appointments.module";
 import { AuthModule } from "./auth/auth.module";
 import { SeedModule } from "./database/seed.module";
 import { ChatModule } from "./chat/chat.module";
+import { ReviewsModule } from "./reviews/reviews.module";
 import { User } from "./users/entities/user.entity";
 import { Client } from "./clients/entities/client.entity";
 import { Appointment } from "./appointments/entities/appointment.entity";
+import { Review } from "./reviews/entities/review.entity";
 
 @Module({
   imports: [
@@ -25,7 +27,7 @@ import { Appointment } from "./appointments/entities/appointment.entity";
       username: process.env.DB_USERNAME || process.env.DATABASE_USERNAME || "postgres",
       password: process.env.DB_PASSWORD || process.env.DATABASE_PASSWORD || "password",
       database: process.env.DB_NAME || process.env.DATABASE_NAME || "carepoint_db",
-      entities: [User, Client, Appointment],
+      entities: [User, Client, Appointment, Review],
       synchronize: true,
     }),
     AuthModule,
@@ -33,7 +35,8 @@ import { Appointment } from "./appointments/entities/appointment.entity";
     ClientsModule,
     AppointmentsModule,
     SeedModule,
-    ChatModule, // Add this
+    ChatModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
